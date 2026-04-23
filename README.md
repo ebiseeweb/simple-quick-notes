@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <strong>A fast, distraction-aware note-taking extension for Chrome.</strong><br>
+  <strong>A fast, distraction-aware note-taking extension</strong><br>
   Floats above any page · auto-saves · Markdown · images · split view · searchable history · Google Drive sync.
 </p>
 
