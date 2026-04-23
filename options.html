@@ -1,0 +1,211 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Quick Notes · Options</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>📝 Quick Notes · Options</h1>
+    <p class="muted">Configure auto-paste, pinned floating panel, and backup / restore.</p>
+  </header>
+
+  <section>
+    <h2>⚡ Auto-paste sites</h2>
+    <p class="muted">
+      When the popup opens on a matching URL, the clipboard is auto-appended to the active note
+      (same content is only pasted once per clip).
+    </p>
+    <div class="inputRow">
+      <input id="autoPasteInput" type="text" placeholder="*://*.github.com/*  or  https://mail.google.com/*">
+      <button id="autoPasteAdd">Add</button>
+    </div>
+    <ul id="autoPasteList" class="patternList"></ul>
+  </section>
+
+  <section>
+    <h2>🪟 Floating panel · pinned sites</h2>
+    <p class="muted">
+      On matching URLs, the floating Quick Notes panel auto-shows when the page finishes loading.
+      You can also pin/unpin the current page directly from the panel's 📌 button.
+    </p>
+    <div class="inputRow">
+      <input id="floatInput" type="text" placeholder="*://docs.google.com/*">
+      <button id="floatAdd">Add</button>
+    </div>
+    <ul id="floatList" class="patternList"></ul>
+    <p class="muted small">
+      Tip: pattern syntax uses <code>*</code> wildcards. Examples:
+      <code>*://*.example.com/*</code>, <code>https://site.com/path/*</code>.
+      Toggle a panel manually on any page with <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>N</kbd>.
+    </p>
+  </section>
+
+  <section>
+    <h2>🎯 Per-site default notes</h2>
+    <p class="muted">
+      When the popup opens on a matching URL, this note is auto-selected.
+      Set/unset a default directly from the editor via the <strong>🎯 Default</strong> button.
+    </p>
+    <ul id="defaultsList" class="patternList"></ul>
+  </section>
+
+  <section>
+    <h2>◆ Popup shape</h2>
+    <p class="muted">
+      Visual shape of the floating panel and standalone editor. Rescue option
+      if a shape made the shape picker hard to reach.
+    </p>
+    <div class="shapeRow" id="shapeRow">
+      <button class="shapeChip" data-shape="rectangle" title="Rectangle">
+        <span class="shapeGlyph">▭</span><span class="shapeLabel">Rectangle</span>
+      </button>
+      <button class="shapeChip" data-shape="rounded" title="Rounded">
+        <span class="shapeGlyph">▢</span><span class="shapeLabel">Rounded</span>
+      </button>
+      <button class="shapeChip" data-shape="hexagon" title="Hexagon">
+        <span class="shapeGlyph">⬡</span><span class="shapeLabel">Hexagon</span>
+      </button>
+      <button class="shapeChip" data-shape="circle" title="Circle">
+        <span class="shapeGlyph">●</span><span class="shapeLabel">Circle</span>
+      </button>
+    </div>
+  </section>
+
+  <section>
+    <h2>◑ Panel opacity</h2>
+    <p class="muted">
+      Background transparency of the floating panel and standalone editor.
+      Text and icons remain fully opaque so readability is preserved.
+    </p>
+    <div class="opacityRow">
+      <input type="range" id="optOpacity" class="opacity-slider" min="30" max="100" step="5" value="100">
+      <span id="optOpacityLabel" class="op-value">100%</span>
+      <button id="optOpacityReset" class="small-reset" title="Reset to 100%">Reset</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>🎨 Custom theme colors</h2>
+    <p class="muted">
+      Override the default palette for the dark and light themes. Changes apply to
+      the floating panel and popup. Only five essential colors are exposed —
+      other shades (borders, hovers, etc.) derive automatically.
+    </p>
+    <div class="themeColors">
+      <div class="themeColors-col">
+        <h3>🦇 Dark theme</h3>
+        <div class="colorRow"><label for="darkBg">Background</label><input type="color" id="darkBg" data-theme="dark" data-key="bg"><input type="text" class="hexInput" id="darkBgHex" data-theme="dark" data-key="bg" placeholder="#RRGGBB" spellcheck="false" maxlength="7"></div>
+        <div class="colorRow"><label for="darkBgAlt">Secondary background</label><input type="color" id="darkBgAlt" data-theme="dark" data-key="bgAlt"><input type="text" class="hexInput" id="darkBgAltHex" data-theme="dark" data-key="bgAlt" placeholder="#RRGGBB" spellcheck="false" maxlength="7"></div>
+        <div class="colorRow"><label for="darkFg">Text</label><input type="color" id="darkFg" data-theme="dark" data-key="fg"><input type="text" class="hexInput" id="darkFgHex" data-theme="dark" data-key="fg" placeholder="#RRGGBB" spellcheck="false" maxlength="7"></div>
+        <div class="colorRow"><label for="darkAccent">Accent</label><input type="color" id="darkAccent" data-theme="dark" data-key="accent"><input type="text" class="hexInput" id="darkAccentHex" data-theme="dark" data-key="accent" placeholder="#RRGGBB" spellcheck="false" maxlength="7"></div>
+        <div class="colorRow"><label for="darkBorder">Borders</label><input type="color" id="darkBorder" data-theme="dark" data-key="border"><input type="text" class="hexInput" id="darkBorderHex" data-theme="dark" data-key="border" placeholder="#RRGGBB" spellcheck="false" maxlength="7"></div>
+        <button class="small-reset" id="darkReset" data-theme="dark">Reset dark to defaults</button>
+      </div>
+      <div class="themeColors-col">
+        <h3>☀ Light theme</h3>
+        <div class="colorRow"><label for="lightBg">Background</label><input type="color" id="lightBg" data-theme="light" data-key="bg"><input type="text" class="hexInput" id="lightBgHex" data-theme="light" data-key="bg" placeholder="#RRGGBB" spellcheck="false" maxlength="7"></div>
+        <div class="colorRow"><label for="lightBgAlt">Secondary background</label><input type="color" id="lightBgAlt" data-theme="light" data-key="bgAlt"><input type="text" class="hexInput" id="lightBgAltHex" data-theme="light" data-key="bgAlt" placeholder="#RRGGBB" spellcheck="false" maxlength="7"></div>
+        <div class="colorRow"><label for="lightFg">Text</label><input type="color" id="lightFg" data-theme="light" data-key="fg"><input type="text" class="hexInput" id="lightFgHex" data-theme="light" data-key="fg" placeholder="#RRGGBB" spellcheck="false" maxlength="7"></div>
+        <div class="colorRow"><label for="lightAccent">Accent</label><input type="color" id="lightAccent" data-theme="light" data-key="accent"><input type="text" class="hexInput" id="lightAccentHex" data-theme="light" data-key="accent" placeholder="#RRGGBB" spellcheck="false" maxlength="7"></div>
+        <div class="colorRow"><label for="lightBorder">Borders</label><input type="color" id="lightBorder" data-theme="light" data-key="border"><input type="text" class="hexInput" id="lightBorderHex" data-theme="light" data-key="border" placeholder="#RRGGBB" spellcheck="false" maxlength="7"></div>
+        <button class="small-reset" id="lightReset" data-theme="light">Reset light to defaults</button>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>💾 Backup &amp; restore</h2>
+    <p class="muted">
+      Export everything · notes, history, settings, theme · to a single JSON file. Import to
+      restore on another machine or recover after a clear.
+    </p>
+    <div class="btnRow">
+      <button id="exportBtn" class="primary">⬇ Export to JSON</button>
+      <input id="importFile" type="file" accept="application/json,.json" hidden>
+      <button id="importBtn">⬆ Import from JSON…</button>
+      <button id="importReplaceBtn" class="warn">⬆ Import + Replace All…</button>
+    </div>
+    <p id="importStatus" class="muted small"></p>
+  </section>
+
+  <section>
+    <h2>☁ Google Drive sync</h2>
+    <p class="muted">
+      Sync notes, history, images, and settings to your Google Drive's hidden
+      app-data folder. Invisible to you in your Drive UI; only this extension can access it.
+      Use it to back up and restore across machines.
+    </p>
+    <div class="driveRow">
+      <button id="driveSignInBtn" class="primary">Sign in with Google</button>
+      <button id="driveSignOutBtn" hidden>Sign out</button>
+      <span id="driveAccountLabel" class="muted small"></span>
+    </div>
+    <div class="driveBody" id="driveBody" hidden>
+      <div class="driveRow">
+        <button id="driveSyncNowBtn">⇅ Sync now</button>
+        <button id="drivePushBtn">⬆ Push local → Drive</button>
+        <button id="drivePullBtn">⬇ Pull Drive → local</button>
+      </div>
+      <div class="driveRow">
+        <label class="chk"><input type="checkbox" id="driveAutoSync"> Auto-sync periodically</label>
+        <label>Interval
+          <select id="driveInterval">
+            <option value="5">every 5 min</option>
+            <option value="15" selected>every 15 min</option>
+            <option value="30">every 30 min</option>
+            <option value="60">every hour</option>
+          </select>
+        </label>
+      </div>
+      <p id="driveStatus" class="muted small"></p>
+    </div>
+  </section>
+
+  <section>
+    <h2>📊 Storage</h2>
+    <ul class="stats">
+      <li>Notes: <span id="statNotes">·</span></li>
+      <li>History entries: <span id="statHistory">·</span></li>
+      <li>Approx storage used: <span id="statBytes">·</span></li>
+    </ul>
+    <div class="btnRow">
+      <button id="clearHistoryBtn">Clear history</button>
+      <button id="clearAllBtn" class="warn">Reset everything</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>ℹ About Quick Notes</h2>
+    <div class="aboutBox">
+      <p>
+        <strong>Quick Notes</strong> · v<span id="aboutVersion">1.0.0</span>
+      </p>
+      <p class="muted">
+        A fast, distraction-aware note-taking extension for Chrome. Floats above any page,
+        auto-saves locally, supports Markdown, tables, images, code blocks, color tags,
+        split view, search, and Google Drive sync.
+      </p>
+      <p>
+        Made with care by
+        <a href="https://github.com/mthcht" target="_blank" rel="noopener">@mthcht</a>
+        ·
+        <a href="https://github.com/quicknotes/quick-notes" target="_blank" rel="noopener">View source on GitHub</a>
+        ·
+        <a href="https://github.com/quicknotes/quick-notes/issues" target="_blank" rel="noopener">Report an issue</a>
+      </p>
+      <p class="muted small">
+        100% local-first by default · zero telemetry · MIT licensed.
+      </p>
+    </div>
+  </section>
+
+  <footer class="muted small">
+    Quick Notes · runs locally · no telemetry. Optional Drive sync is opt-in.
+  </footer>
+</div>
+<script src="options.js"></script>
+</body>
+</html>

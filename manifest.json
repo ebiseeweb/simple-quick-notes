@@ -1,0 +1,44 @@
+{
+  "manifest_version": 3,
+  "name": "Quick Notes",
+  "version": "1.0.0",
+  "description": "Floating note-taking with Markdown, tables, images, code blocks, color tags, split view, search, and backup. Auto-saves.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwYxxY2CWgGvOG3tMaTStlQ/Pwvgn2h+q940Bu/BZh1czsj5uExo68jWigOAHZvIj2nMvYr9LXXNgUy1Udy6jhsWo4NU9YceaOC6bMQmp8I62RB/KiLhHAbmUfInpF7vOheq5EjZivhTfCFuvtAka1BGf5D/VO9usREMIxbZICZtf391/gMc3kBdO4+MGKZFGbMwZ4T8t8jOf06HU2Mp2Bcl3Am7vZcO67C7r2t75kExr3+k0VLtQpUhr67Q61hdxzAOsX14JvJD0hMseYjKIc9F+3/Ec6S0Sp7TPuVvluW7PNpwO3IOr+G1jdJwU4UwrhMAXDyWJD9D7sgr2MZIu2wIDAQAB",
+  "permissions": [
+    "storage",
+    "scripting",
+    "clipboardRead",
+    "contextMenus",
+    "identity",
+    "alarms"
+  ],
+  "host_permissions": ["<all_urls>"],
+  "oauth2": {
+    "client_id": "872447937251-l4svb097teenn428503qb7qnlng9h369.apps.googleusercontent.com",
+    "scopes": [
+      "https://www.googleapis.com/auth/drive.appdata"
+    ]
+  },
+  "action": {
+    "default_title": "Quick Notes (Alt+N)"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "options_page": "options.html",
+  "commands": {
+    "_execute_action": {
+      "suggested_key": { "default": "Alt+N", "mac": "Alt+N" },
+      "description": "Open Quick Notes"
+    },
+    "toggle-floating": {
+      "suggested_key": { "default": "Alt+Shift+N", "mac": "Alt+Shift+N" },
+      "description": "Toggle floating panel on current tab"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
