@@ -27,6 +27,15 @@ Quick Notes is a lightweight Chrome extension for keeping notes while you browse
 
 Think of it as a scratchpad, journal, clipboard-assistant, and Markdown editor rolled into one tool that's always a keystroke away.
 
+## Screenshots
+
+<img width="1442" height="907" alt="Capture d&#39;écran 2026-04-23 100910" src="https://github.com/user-attachments/assets/a06448ef-6149-40e9-a538-dd302a7abe72" />
+<img width="1378" height="906" alt="Capture d&#39;écran 2026-04-23 101236" src="https://github.com/user-attachments/assets/4a83597a-f0bc-4a83-a488-74fb4e5932cf" />
+<img width="1887" height="1073" alt="Capture d&#39;écran 2026-04-23 101719" src="https://github.com/user-attachments/assets/a627bb0b-2c7e-430b-9cbe-90bb7253fe32" />
+<img width="1591" height="785" alt="Capture d&#39;écran 2026-04-23 101818" src="https://github.com/user-attachments/assets/be1702c5-7130-4750-9671-82269575808a" />
+<img width="893" height="794" alt="Capture d&#39;écran 2026-04-23 101836" src="https://github.com/user-attachments/assets/e73b13e8-e5be-4b9f-b9cd-0f8e1b6eeefd" />
+<img width="1572" height="983" alt="Capture d&#39;écran 2026-04-23 101901" src="https://github.com/user-attachments/assets/cf9477c0-1522-4d36-9525-a72cf791030a" />
+
 ## Features
 
 - **Floating panel** - press `Alt+N` on any page to open a draggable, resizable panel that persists across tabs. Eight-way resize handles, drag from the header, snap by double-clicking, or recenter with `Alt+Shift+R`.
