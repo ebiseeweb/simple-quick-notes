@@ -23,31 +23,31 @@
 
 ## What it is
 
-Quick Notes is a lightweight Chrome extension for keeping notes while you browse. It lives as a floating panel you can drag anywhere on any page, or as a popup from the toolbar icon. Everything auto-saves to local storage — no accounts, no servers, no telemetry. Notes are yours and stay on your machine.
+Quick Notes is a lightweight Chrome extension for keeping notes while you browse. It lives as a floating panel you can drag anywhere on any page, or as a popup from the toolbar icon. Everything auto-saves to local storage - no accounts, no servers, no telemetry. Notes are yours and stay on your machine.
 
 Think of it as a scratchpad, journal, clipboard-assistant, and Markdown editor rolled into one tool that's always a keystroke away.
 
 ## Features
 
-- **Floating panel** — press `Alt+N` on any page to open a draggable, resizable panel that persists across tabs. Eight-way resize handles, drag from the header, snap by double-clicking, or recenter with `Alt+Shift+R`.
-- **Auto-save** — every keystroke is debounced and saved to `chrome.storage.local`. Nothing to click.
-- **Multiple notes with pinning** — create, rename, delete, and pin notes. Pinned notes bubble to the top of the selector.
-- **Split view** — horizontal or vertical side-by-side editing of two notes at once. Independent selectors per pane, draggable splitter, flip direction.
-- **Rich Markdown preview** — headings, bold, italic, inline code, fenced code blocks, links, bullet and numbered lists, blockquotes, horizontal rules, and pipe tables with alignment. Live toggle.
-- **Checklists** — `- [ ]` and `- [x]` round-trip between the textarea and real clickable checkboxes in preview mode.
-- **Tables** — Excel-style hover picker (up to 8×8). Alignment syntax (`:---`, `---:`, `:---:`) respected.
-- **Images & GIFs** — paste from clipboard or drag-and-drop any image file. GIFs animate. Stored by reference so notes stay readable. Preview caps image height so one screenshot can't dominate.
-- **Text formatting** — bold (`B`), inline/fenced code (`</>`), and text color (8 themed palette) with a one-click toolbar group.
-- **Focus mode** — a single icon hides every bar and gives you a distraction-free writing surface. `Esc` or `Alt+drag` to leave.
-- **Color tags & transparency** — tag notes with one of eight colors (accent shown as a dot), adjust panel opacity from 30% to 100%.
-- **Search (`Ctrl+F`)** — fuzzy search across all notes with content snippets and match counts.
-- **History** — every clipboard-paste, URL grab, and selection-capture is logged (last 200) with source and timestamp.
-- **Per-site auto-paste & defaults** — configure URL patterns that automatically paste incoming clipboard content, or set a default note for a specific site.
-- **Backup & restore** — one-click JSON export of all notes, settings, and history. Restore on any machine.
-- **Google Drive sync (opt-in)** — one-click sign-in syncs to your Drive's hidden app-data folder. Auto-sync on configurable interval, manual push/pull. See [Google Drive sync](#google-drive-sync).
-- **Light & dark themes** — warm dark default, clean light mode. Toggle in header.
-- **Responsive toolbar** — header and formatting bar measure their own overflow and progressively scale down icons so everything stays accessible at any panel width.
-- **Privacy-respecting** — no network requests. No analytics. No remote code. All data in `chrome.storage.local`.
+- **Floating panel** - press `Alt+N` on any page to open a draggable, resizable panel that persists across tabs. Eight-way resize handles, drag from the header, snap by double-clicking, or recenter with `Alt+Shift+R`.
+- **Auto-save** - every keystroke is debounced and saved to `chrome.storage.local`. Nothing to click.
+- **Multiple notes with pinning** - create, rename, delete, and pin notes. Pinned notes bubble to the top of the selector.
+- **Split view** - horizontal or vertical side-by-side editing of two notes at once. Independent selectors per pane, draggable splitter, flip direction.
+- **Rich Markdown preview** - headings, bold, italic, inline code, fenced code blocks, links, bullet and numbered lists, blockquotes, horizontal rules, and pipe tables with alignment. Live toggle.
+- **Checklists** - `- [ ]` and `- [x]` round-trip between the textarea and real clickable checkboxes in preview mode.
+- **Tables** - Excel-style hover picker (up to 8×8). Alignment syntax (`:---`, `---:`, `:---:`) respected.
+- **Images & GIFs** - paste from clipboard or drag-and-drop any image file. GIFs animate. Stored by reference so notes stay readable. Preview caps image height so one screenshot can't dominate.
+- **Text formatting** - bold (`B`), inline/fenced code (`</>`), and text color (8 themed palette) with a one-click toolbar group.
+- **Focus mode** - a single icon hides every bar and gives you a distraction-free writing surface. `Esc` or `Alt+drag` to leave.
+- **Color tags & transparency** - tag notes with one of eight colors (accent shown as a dot), adjust panel opacity from 30% to 100%.
+- **Search (`Ctrl+F`)** - fuzzy search across all notes with content snippets and match counts.
+- **History** - every clipboard-paste, URL grab, and selection-capture is logged (last 200) with source and timestamp.
+- **Per-site auto-paste & defaults** - configure URL patterns that automatically paste incoming clipboard content, or set a default note for a specific site.
+- **Backup & restore** - one-click JSON export of all notes, settings, and history. Restore on any machine.
+- **Google Drive sync (opt-in)** - one-click sign-in syncs to your Drive's hidden app-data folder. Auto-sync on configurable interval, manual push/pull. See [Google Drive sync](#google-drive-sync).
+- **Light & dark themes** - warm dark default, clean light mode. Toggle in header.
+- **Responsive toolbar** - header and formatting bar measure their own overflow and progressively scale down icons so everything stays accessible at any panel width.
+- **Privacy-respecting** - no network requests. No analytics. No remote code. All data in `chrome.storage.local`.
 
 ## Installation
 
@@ -78,7 +78,7 @@ Right-click anywhere to send page URL, selection, or a link into the active note
 
 ## Development
 
-No build step — the extension is vanilla JavaScript, HTML, and CSS.
+No build step - the extension is vanilla JavaScript, HTML, and CSS.
 
 ```
 quick-notes/
@@ -95,14 +95,14 @@ To iterate: edit, then hit **Reload** on the extension card in `chrome://extensi
 
 ### Requirements
 
-- Chrome 114 or newer (for `chrome.sidePanel` compatibility paths and modern Shadow DOM behavior — core features work further back).
+- Chrome 114 or newer (for `chrome.sidePanel` compatibility paths and modern Shadow DOM behavior - core features work further back).
 - No external dependencies, no npm, no bundler.
 
 ## Privacy
 
 Quick Notes stores everything locally in `chrome.storage.local`. The extension makes zero network requests by default. No usage data, crash reports, telemetry, or identifiers leave your browser. Clipboard and page-selection captures happen on-device and stay on-device. Backup exports are plain JSON files you save where you want.
 
-Google Drive sync is **opt-in**. When enabled, your notes are synced to your own Drive's hidden `appDataFolder` (a per-app sandbox that's invisible in the regular Drive UI and accessible only to this extension via the `drive.appdata` scope — not your general Drive content). Disable any time from the options page.
+Google Drive sync is **opt-in**. When enabled, your notes are synced to your own Drive's hidden `appDataFolder` (a per-app sandbox that's invisible in the regular Drive UI and accessible only to this extension via the `drive.appdata` scope - not your general Drive content). Disable any time from the options page.
 
 ### Permissions explained
 
@@ -112,17 +112,17 @@ The extension requests these Chrome API permissions plus broad host access:
 |---|---|
 | `storage` | Save notes, settings, and history to `chrome.storage.local`. |
 | `scripting` | Inject the floating panel into the active tab when you press `Alt+N`. |
-| `clipboardRead` | The Paste button reads your clipboard — only on click, never in the background. |
+| `clipboardRead` | The Paste button reads your clipboard - only on click, never in the background. |
 | `contextMenus` | Adds the right-click entries ("Send selection to note," etc.). |
 | `identity` | Google sign-in for opt-in Drive sync. Only used when you enable sync. |
 | `alarms` | Schedule periodic auto-sync to Drive. Only fires when sync is enabled. |
 | `<all_urls>` host access | Required so the floating panel can appear on any page. **No page content is read** except when you explicitly click Insert page URL / Insert selection. |
 
-Downloads use the browser's native `<a download>` mechanism — no `downloads` permission needed. Tab URL and title come through the host permission, no `tabs` permission needed. No `activeTab` either.
+Downloads use the browser's native `<a download>` mechanism - no `downloads` permission needed. Tab URL and title come through the host permission, no `tabs` permission needed. No `activeTab` either.
 
 ## Google Drive sync
 
-Google Drive sync is **opt-in** and uses the minimum-privilege `drive.appdata` scope — your notes are stored in a hidden per-app folder in your Drive, invisible in the regular Drive UI and accessible only to this extension.
+Google Drive sync is **opt-in** and uses the minimum-privilege `drive.appdata` scope - your notes are stored in a hidden per-app folder in your Drive, invisible in the regular Drive UI and accessible only to this extension.
 
 ### For users
 
@@ -151,13 +151,13 @@ The build shipped with a **placeholder OAuth client ID** because Google OAuth cl
 8. Open `manifest.json` and replace `YOUR_GOOGLE_OAUTH_CLIENT_ID.apps.googleusercontent.com` with your real client ID.
 9. Reload the extension. **Sign in with Google** now works end-to-end.
 
-After publishing to the Chrome Web Store, its extension ID is stable — you'll re-register the OAuth client ID against the store-assigned ID (or skip this step if you pinned with a `key` field), and all end-users benefit automatically without any setup on their side.
+After publishing to the Chrome Web Store, its extension ID is stable - you'll re-register the OAuth client ID against the store-assigned ID (or skip this step if you pinned with a `key` field), and all end-users benefit automatically without any setup on their side.
 
 </details>
 
 ## License
 
-MIT License — see [LICENSE](LICENSE) for full text. Feel free to fork, modify, and redistribute.
+MIT License - see [LICENSE](LICENSE) for full text. Feel free to fork, modify, and redistribute.
 
 ## Contributing
 
@@ -165,7 +165,7 @@ Issues and pull requests are welcome. Please describe the use case in the issue 
 
 ## Credits
 
-Built with vanilla web platform APIs — Shadow DOM for CSS isolation, ResizeObserver for responsive layouts, `chrome.storage.local` for persistence. Amber accent palette `#d4a85f` over warm dark `#1F1F1E`.
+Built with vanilla web platform APIs - Shadow DOM for CSS isolation, ResizeObserver for responsive layouts, `chrome.storage.local` for persistence. Amber accent palette `#d4a85f` over warm dark `#1F1F1E`.
 
 ---
 
