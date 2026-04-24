@@ -12,10 +12,8 @@
 <p align="center">
   <a href="#installation"><img alt="Version" src="https://img.shields.io/badge/version-1.0.0-d4a85f.svg" /></a>
   <img alt="Manifest V3" src="https://img.shields.io/badge/manifest-v3-4285F4.svg" />
-  <img alt="Chrome" src="https://img.shields.io/badge/chrome-%E2%89%A5%20114-1a73e8.svg" />
   <img alt="License" src="https://img.shields.io/badge/license-MIT-green.svg" />
   <img alt="No tracking" src="https://img.shields.io/badge/tracking-none-success.svg" />
-  <img alt="Offline-first" src="https://img.shields.io/badge/offline-first-orange.svg" />
   <a href="https://github.com/mthcht"><img alt="Author" src="https://img.shields.io/badge/by-%40mthcht-181717?logo=github" /></a>
 </p>
 
