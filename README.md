@@ -58,7 +58,11 @@ Think of it as a scratchpad, journal, clipboard-assistant, and Markdown editor r
 
 ## Installation
 
-### From source (until Chrome Web Store listing is live)
+### From Chrome Web Store
+
+install from https://chromewebstore.google.com/detail/quick-notes/aelknahnnjimdajnjkjochpejeanobik
+
+### From source
 
 1. Clone or download this repository.
 2. Open `chrome://extensions` in Chrome.
