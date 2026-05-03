@@ -39,6 +39,9 @@
       <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></symbol>
       <symbol id="i-redo" viewBox="0 0 24 24"><path d="M15 14l5-5-5-5"/><path d="M4 20v-7a4 4 0 0 1 4-4h12"/></symbol>
       <symbol id="i-selection" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="3 3"/><path d="M9 9h6v6H9z" fill="currentColor" fill-opacity="0.3"/></symbol>
+      <symbol id="i-italic" viewBox="0 0 24 24"><path d="M19 4h-9M14 20H5M15 4L9 20"/></symbol>
+      <symbol id="i-list-ul" viewBox="0 0 24 24"><circle cx="5" cy="6" r="1"/><circle cx="5" cy="12" r="1"/><circle cx="5" cy="18" r="1"/><path d="M10 6h11M10 12h11M10 18h11"/></symbol>
+      <symbol id="i-list-ol" viewBox="0 0 24 24"><path d="M10 6h11M10 12h11M10 18h11M4 6h1v4M4 10h2M4 18h2M4 13h2"/></symbol>
     </defs>
   </svg>
 
@@ -68,7 +71,7 @@
     <div id="editorView" class="view" hidden>
       <div class="header">
         <button id="goHome" class="icon-btn" title="Back to note list"><svg class="ico"><use href="#i-arrow-left"/></svg></button>
-        <span id="activeNoteLabel" class="active-note-label">Open Note</span>
+        <span id="activeNoteLabel" class="qn-active-label" title="Click to rename">Open Note</span>
         <span class="spacer"></span>
         <button id="newNote" class="icon-btn" title="New note"><svg class="ico"><use href="#i-plus"/></svg></button>
         <button id="tagBtn" class="icon-btn" title="Color tag this note"><svg class="ico"><use href="#i-tag"/></svg></button>
@@ -89,47 +92,23 @@
       </div>
 
       <div class="toolbar">
-        <div class="tool-group">
-          <button id="undoBtn" class="text-btn" title="Undo"><svg class="ico"><use href="#i-undo"/></svg></button>
-          <button id="redoBtn" class="text-btn" title="Redo"><svg class="ico"><use href="#i-redo"/></svg></button>
-        </div>
+        <button id="undoBtn" class="text-btn" title="Undo"><svg class="ico"><use href="#i-undo"/></svg></button>
+        <button id="redoBtn" class="text-btn" title="Redo"><svg class="ico"><use href="#i-redo"/></svg></button>
         <div class="tool-sep"></div>
-        <div class="tool-group">
-          <button id="pasteBtn" class="text-btn" title="Paste clipboard at cursor"><svg class="ico"><use href="#i-clipboard"/></svg></button>
-          <button id="cutBtn" class="text-btn" title="Cut selection"><svg class="ico"><use href="#i-scissors"/></svg></button>
-          <button id="copyBtn" class="text-btn" title="Copy whole note"><svg class="ico"><use href="#i-copy"/></svg></button>
-        </div>
+        <button id="pasteBtn" class="text-btn" title="Paste"><svg class="ico"><use href="#i-clipboard"/></svg></button>
+        <button id="cutBtn" class="text-btn" title="Cut"><svg class="ico"><use href="#i-scissors"/></svg></button>
+        <button id="copyBtn" class="text-btn" title="Copy"><svg class="ico"><use href="#i-copy"/></svg></button>
         <div class="tool-sep"></div>
-        <div class="tool-group">
-          <button id="urlBtn" class="text-btn" title="Insert current page URL"><svg class="ico"><use href="#i-link"/></svg></button>
-          <button id="selectionBtn" class="text-btn" title="Insert page selection"><svg class="ico"><use href="#i-selection"/></svg></button>
-          <button id="timeBtn" class="text-btn" title="Insert timestamp with timezone"><svg class="ico"><use href="#i-clock"/></svg></button>
-        </div>
+        <button id="checkBtn" class="text-btn" title="Checklist"><svg class="ico"><use href="#i-check"/></svg></button>
+        <button id="ulBtn" class="text-btn" title="Unordered list"><svg class="ico"><use href="#i-list-ul"/></svg></button>
+        <button id="olBtn" class="text-btn" title="Ordered list"><svg class="ico"><use href="#i-list-ol"/></svg></button>
         <div class="tool-sep"></div>
-        <div class="tool-group">
-          <button id="divBtn" class="text-btn" title="Insert divider">━</button>
-          <button id="checkBtn" class="text-btn" title="Insert checklist item"><svg class="ico"><use href="#i-check"/></svg></button>
-          <button id="tableBtn" class="text-btn" title="Insert markdown table"><svg class="ico"><use href="#i-table"/></svg></button>
-        </div>
+        <button id="boldBtn" class="text-btn" title="Bold"><svg class="ico"><use href="#i-bold"/></svg></button>
+        <button id="italicBtn" class="text-btn" title="Italic"><svg class="ico"><use href="#i-italic"/></svg></button>
+        <button id="codeBtn" class="text-btn" title="Code"><svg class="ico"><use href="#i-code"/></svg></button>
         <div class="tool-sep"></div>
-        <div class="tool-group">
-          <button id="boldBtn" class="text-btn" title="Bold (wrap **selection**)"><svg class="ico"><use href="#i-bold"/></svg></button>
-          <button id="codeBtn" class="text-btn" title="Code (inline or fenced block)"><svg class="ico"><use href="#i-code"/></svg></button>
-          <button id="colorBtn" class="text-btn" title="Text color"><svg class="ico"><use href="#i-colorText"/></svg></button>
-          <button id="previewBtn" class="text-btn" title="Toggle Markdown / checklist preview"><svg class="ico"><use href="#i-eye"/></svg></button>
-        </div>
-        <div class="tool-sep"></div>
-        <div class="tool-group">
-          <button id="defaultBtn" class="text-btn" title="Set as default note for current site"><svg class="ico"><use href="#i-target"/></svg></button>
-          <button id="downloadBtn" class="text-btn" title="Download as .txt"><svg class="ico"><use href="#i-download"/></svg></button>
-          <button id="floatBtn" class="text-btn" title="Toggle floating panel on current page (Alt+Shift+N)"><svg class="ico"><use href="#i-window"/></svg></button>
-        </div>
-        <div class="tool-sep"></div>
-        <div class="opacity-group" title="Popup opacity">
-          <span class="op-icon"><svg class="ico"><use href="#i-eye"/></svg></span>
-          <input type="range" id="opacitySlider" class="opacity-slider" min="30" max="100" step="5" value="100">
-          <span id="opacityLabel" class="op-label">100%</span>
-        </div>
+        <button id="previewBtn" class="text-btn" title="Preview"><svg class="ico"><use href="#i-eye"/></svg></button>
+        <button id="downloadBtn" class="text-btn" title="Download"><svg class="ico"><use href="#i-download"/></svg></button>
       </div>
 
       <textarea id="editor" spellcheck="true" placeholder="Start typing…   Auto-saved."></textarea>

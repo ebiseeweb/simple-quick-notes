@@ -86,12 +86,16 @@ function normalizeShape(s) { return Utils.normalizeShape(s); }
 function showView(viewId) {
   currentView = viewId.replace('View', '');
   const views = [homeView, editorView, searchView, historyView];
-  const active = views.find(v => !v.hidden);
-  if (active && active.id !== 'searchView' && active.id !== 'historyView') {
-    state.lastView = active.id;
-  }
+  
   views.forEach(v => v.hidden = true);
   $(viewId).hidden = false;
+
+  // Save location (only for major views, not search/history)
+  if (viewId === 'homeView' || viewId === 'editorView') {
+    state.lastView = viewId;
+    storageSet({ lastView: viewId });
+  }
+
   if (viewId === 'homeView') renderHome();
 }
 
@@ -99,7 +103,7 @@ function showView(viewId) {
 async function load() {
   if (!isContextValid()) return;
   const data = await chrome.storage.local.get([
-    'notes', 'activeId', 'theme', 'history', 'settings', 'shape', 'size', 'opacity', 'images', 'customColors'
+    'notes', 'activeId', 'theme', 'history', 'settings', 'shape', 'size', 'opacity', 'images', 'customColors', 'lastView'
   ]);
   state.notes = (data.notes && data.notes.length)
     ? data.notes
@@ -168,8 +172,10 @@ async function load() {
   if (perSite) {
     showView('editorView');
     editor.focus();
+  } else if (data.lastView && (data.lastView === 'homeView' || data.lastView === 'editorView')) {
+    showView(data.lastView);
+    if (data.lastView === 'editorView') editor.focus();
   } else {
-    // Force Home view on every startup if no site default is active
     showView('homeView');
   }
 
@@ -513,6 +519,7 @@ $('goHome').addEventListener('click', async () => {
 
 $('newNote').addEventListener('click', async () => {
   await save();
+  if (state.previewOn) togglePreview(false); // Force off
   const note = { id: genId(), title: 'Untitled', content: '', updatedAt: Date.now(), pinned: false };
   state.notes.push(note);
   state.activeId = note.id;
@@ -522,8 +529,55 @@ $('newNote').addEventListener('click', async () => {
   editor.focus();
 });
 
+activeNoteLabel.addEventListener('click', () => {
+  // Use the same rename logic from Home view but applied to active note
+  const n = activeNote();
+  if (!n) return;
+  const current = n.title || '';
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'rename-input';
+  input.value = current;
+  input.onclick = (e) => e.stopPropagation();
+  
+  const originalDisplay = activeNoteLabel.style.display;
+  activeNoteLabel.style.display = 'none';
+  activeNoteLabel.parentNode.insertBefore(input, activeNoteLabel);
+  
+  let committed = false;
+  async function commit(save) {
+    if (committed) return;
+    committed = true;
+    input.remove();
+    activeNoteLabel.style.display = originalDisplay;
+    if (!save) return;
+    const t = input.value.trim().slice(0, 80);
+    if (t === current) return;
+    if (t) {
+      n.title = t;
+      n.titleLocked = true;
+    } else {
+      n.titleLocked = false;
+      n.title = deriveTitle(n.content);
+    }
+    n.updatedAt = Date.now();
+    await storageSet({ notes: state.notes });
+    activeNoteLabel.textContent = n.title || 'Untitled';
+    flash(t ? 'renamed ✓' : 'title unlocked');
+  }
+  
+  input.onkeydown = (e) => {
+    if (e.key === 'Enter') commit(true);
+    if (e.key === 'Escape') commit(false);
+  };
+  input.onblur = () => commit(true);
+  input.focus();
+  input.select();
+});
+
 // Homepage button listeners
 $('homeNewNote').addEventListener('click', () => {
+  if (state.previewOn) togglePreview(false); // Disable preview
   const note = { id: genId(), title: 'Untitled', content: '', updatedAt: Date.now(), pinned: false };
   state.notes.push(note);
   state.activeId = note.id;
@@ -566,49 +620,11 @@ $('copyBtn').addEventListener('click', async () => {
   catch { flash('copy failed'); }
 });
 
-$('urlBtn').addEventListener('click', async () => {
-  if (!state.currentTab) return flash('no tab');
-  const text = `${state.currentTab.title}\n${state.currentTab.url}\n`;
-  insertAtCursor(text);
-  await logHistory({ source: 'page', content: text, tab: state.currentTab });
-  flash('link added ✓');
-});
 
-$('selectionBtn').addEventListener('click', async () => {
-  try {
-    if (!state.currentTab) return flash('no tab');
-    const [result] = await chrome.scripting.executeScript({
-      target: { tabId: state.currentTab.id },
-      func: () => window.getSelection().toString()
-    });
-    const sel = (result && result.result || '').trim();
-    if (sel) {
-      const formatted = `"${sel}"\n~ ${state.currentTab.title} (${state.currentTab.url})\n\n`;
-      insertAtCursor(formatted);
-      await logHistory({ source: 'selection', content: formatted, tab: state.currentTab });
-      flash('selection added ✓');
-    } else flash('no selection on page');
-  } catch { flash('not available here'); }
-});
 
-$('timeBtn').addEventListener('click', () => {
-  const now = new Date();
-  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'local';
-  const offMin = -now.getTimezoneOffset();
-  const sign = offMin >= 0 ? '+' : '-';
-  const abs = Math.abs(offMin);
-  const offH = String(Math.floor(abs / 60)).padStart(2, '0');
-  const offM = String(abs % 60).padStart(2, '0');
-  const y = now.getFullYear();
-  const mo = String(now.getMonth() + 1).padStart(2, '0');
-  const d = String(now.getDate()).padStart(2, '0');
-  const h = String(now.getHours()).padStart(2, '0');
-  const mi = String(now.getMinutes()).padStart(2, '0');
-  const s = String(now.getSeconds()).padStart(2, '0');
-  const stamp = `[${y}-${mo}-${d} ${h}:${mi}:${s} GMT${sign}${offH}:${offM} (${tz})] `;
-  insertAtCursor(stamp);
-  flash('time added');
-});
+
+
+
 
 $('cutBtn').addEventListener('click', () => {
   const start = editor.selectionStart;
@@ -625,11 +641,7 @@ $('cutBtn').addEventListener('click', () => {
   }
 });
 
-$('tableBtn').addEventListener('click', () => {
-  const template = `| Column 1 | Column 2 |\n| --- | --- |\n| Cell 1 | Cell 2 |\n`;
-  insertAtCursor(template);
-  flash('table added ✓');
-});
+
 
 $('undoBtn').addEventListener('click', () => {
   editor.focus();
@@ -641,13 +653,10 @@ $('redoBtn').addEventListener('click', () => {
 });
 
 $('homeOptionsBtn').addEventListener('click', () => {
-  chrome.runtime.openOptionsPage();
+  chrome.runtime.sendMessage({ type: 'open-options' });
 });
 
-$('divBtn').addEventListener('click', () => {
-  insertAtCursor('\n---\n');
-  flash('divider');
-});
+
 
 $('checkBtn').addEventListener('click', () => {
   const sel = editor.selectionStart;
@@ -661,21 +670,97 @@ function wrapEditorSelection(before, after) {
   const s = editor.selectionStart, e = editor.selectionEnd;
   const selected = editor.value.slice(s, e);
   const inserted = before + selected + after;
-  editor.value = editor.value.slice(0, s) + inserted + editor.value.slice(e);
-  if (selected) {
-    editor.selectionStart = s;
-    editor.selectionEnd = s + inserted.length;
-  } else {
-    const pos = s + before.length;
-    editor.selectionStart = editor.selectionEnd = pos;
-  }
+  
   editor.focus();
-  editor.dispatchEvent(new Event('input', { bubbles: true }));
+  // Use execCommand to preserve undo/redo history
+  if (document.execCommand('insertText', false, inserted)) {
+    if (selected) {
+      editor.setSelectionRange(s, s + inserted.length);
+    } else {
+      const pos = s + before.length;
+      editor.setSelectionRange(pos, pos);
+    }
+  } else {
+    // Fallback
+    editor.value = editor.value.slice(0, s) + inserted + editor.value.slice(e);
+    if (selected) {
+      editor.selectionStart = s;
+      editor.selectionEnd = s + inserted.length;
+    } else {
+      const pos = s + before.length;
+      editor.selectionStart = editor.selectionEnd = pos;
+    }
+    editor.dispatchEvent(new Event('input', { bubbles: true }));
+  }
 }
 
 $('boldBtn').addEventListener('click', () => {
   wrapEditorSelection('**', '**');
   flash('bold');
+});
+
+$('italicBtn').addEventListener('click', () => {
+  wrapEditorSelection('*', '*');
+  flash('italic');
+});
+
+$('ulBtn').addEventListener('click', () => {
+  const sel = editor.selectionStart;
+  const before = editor.value[sel - 1];
+  const prefix = (sel === 0 || before === '\n') ? '' : '\n';
+  insertAtCursor(prefix + '- ');
+  flash('list');
+});
+
+$('olBtn').addEventListener('click', () => {
+  const sel = editor.selectionStart;
+  const before = editor.value[sel - 1];
+  const prefix = (sel === 0 || before === '\n') ? '' : '\n';
+  insertAtCursor(prefix + '1. ');
+  flash('numbered list');
+});
+
+editor.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    const start = editor.selectionStart;
+    const value = editor.value;
+    const lastNewline = value.lastIndexOf('\n', start - 1);
+    const lineStart = lastNewline + 1;
+    const currentLine = value.slice(lineStart, start);
+    
+    // Unordered list match: "- " or "* "
+    const ulMatch = currentLine.match(/^(\s*[-*]\s+)/);
+    // Ordered list match: "1. "
+    const olMatch = currentLine.match(/^(\s*)(\d+)\.\s+/);
+    
+    if (ulMatch) {
+      const marker = ulMatch[1];
+      if (currentLine.trim() === '-' || currentLine.trim() === '*') {
+        // Empty item: delete marker and end list
+        e.preventDefault();
+        editor.setSelectionRange(lineStart, start);
+        document.execCommand('insertText', false, '');
+      } else {
+        // Continue list
+        e.preventDefault();
+        document.execCommand('insertText', false, '\n' + marker);
+      }
+    } else if (olMatch) {
+      const indent = olMatch[1];
+      const num = parseInt(olMatch[2]);
+      const marker = `${indent}${num}. `;
+      if (currentLine.trim() === `${num}.`) {
+        // Empty item: delete marker and end list
+        e.preventDefault();
+        editor.setSelectionRange(lineStart, start);
+        document.execCommand('insertText', false, '');
+      } else {
+        // Continue list: increment number
+        e.preventDefault();
+        document.execCommand('insertText', false, `\n${indent}${num + 1}. `);
+      }
+    }
+  }
 });
 
 $('codeBtn').addEventListener('click', () => {
@@ -702,67 +787,7 @@ $('codeBtn').addEventListener('click', () => {
   flash('code');
 });
 
-$('colorBtn').addEventListener('click', (ev) => {
-  ev.stopPropagation();
-  const existing = document.querySelector('.colorMenu');
-  if (existing) { existing.remove(); return; }
-  const menu = document.createElement('div');
-  menu.className = 'colorMenu';
-  const colors = [
-    { name: 'red',     css: '#e57373' },
-    { name: 'orange',  css: '#f0a35e' },
-    { name: 'yellow',  css: '#e7c862' },
-    { name: 'green',   css: '#7bb87a' },
-    { name: 'cyan',    css: '#6ec1d4' },
-    { name: 'blue',    css: '#6da4d4' },
-    { name: 'purple',  css: '#a880c4' },
-    { name: 'pink',    css: '#d486a8' },
-    { name: 'clear',   css: null }
-  ];
-  colors.forEach(c => {
-    const sw = document.createElement('button');
-    sw.className = 'color-swatch' + (c.css === null ? ' none' : '');
-    if (c.css) sw.style.background = c.css;
-    else sw.textContent = '∅';
-    sw.title = c.name;
-    sw.addEventListener('click', (e2) => {
-      e2.stopPropagation();
-      menu.remove();
-      if (c.css) {
-        wrapEditorSelection(`<span style="color: ${c.css}">`, `</span>`);
-        flash(`color: ${c.name}`);
-      } else {
-        const s = editor.selectionStart, e = editor.selectionEnd;
-        const selected = editor.value.slice(s, e);
-        if (selected) {
-          const stripped = selected
-            .replace(/^<span\s+style="color:\s*[^"]*">/, '')
-            .replace(/<\/span>$/, '');
-          editor.value = editor.value.slice(0, s) + stripped + editor.value.slice(e);
-          editor.selectionStart = s;
-          editor.selectionEnd = s + stripped.length;
-          editor.dispatchEvent(new Event('input', { bubbles: true }));
-          flash('color cleared');
-        }
-      }
-    });
-    menu.appendChild(sw);
-  });
-  const rect = ev.currentTarget.getBoundingClientRect();
-  menu.style.position = 'fixed';
-  menu.style.top = (rect.bottom + 4) + 'px';
-  menu.style.left = rect.left + 'px';
-  document.body.appendChild(menu);
-  setTimeout(() => {
-    const dismiss = (e2) => {
-      if (!menu.contains(e2.target)) {
-        menu.remove();
-        document.removeEventListener('click', dismiss);
-      }
-    };
-    document.addEventListener('click', dismiss);
-  }, 0);
-});
+
 
 // Drag-and-drop image files onto the editor
 (function wireEditorDrop() {
@@ -850,14 +875,17 @@ function applyThemeIcon() {
   // Icon shows the *destination* of the toggle:
   // - Currently dark → show ☀ (click to go light)
   // - Currently light → show 🦇 (click to go dark)
-  const btn = $('themeBtn');
-  const use = btn.querySelector('use');
-  if (use) {
-    use.setAttribute('href', state.theme === 'dark' ? '#i-sun' : '#i-bat');
-  }
-  btn.title = state.theme === 'dark'
-    ? 'Switch to light theme'
-    : 'Switch to dark theme';
+  ['themeBtn', 'homeThemeBtn'].forEach(id => {
+    const btn = $(id);
+    if (!btn) return;
+    const use = btn.querySelector('use');
+    if (use) {
+      use.setAttribute('href', state.theme === 'dark' ? '#i-sun' : '#i-bat');
+    }
+    btn.title = state.theme === 'dark'
+      ? 'Switch to light theme'
+      : 'Switch to dark theme';
+  });
 }
 
 async function toggleTheme() {
@@ -869,7 +897,7 @@ async function toggleTheme() {
 
 $('themeBtn').addEventListener('click', toggleTheme);
 
-$('optionsBtn').addEventListener('click', () => chrome.runtime.openOptionsPage());
+$('optionsBtn').addEventListener('click', () => chrome.runtime.sendMessage({ type: 'open-options' }));
 
 // ============ Opacity slider ============
 const opacitySlider = $('opacitySlider');
@@ -948,14 +976,7 @@ if (document.documentElement.classList.contains('standalone')) {
   const fb = $('floatBtn');
   if (fb) fb.style.display = 'none';
 }
-$('floatBtn').addEventListener('click', async () => {
-  if (!state.currentTab) return flash('no tab');
-  try {
-    await chrome.runtime.sendMessage({ type: 'toggle-floating', tabId: state.currentTab.id });
-    flash('toggled panel');
-    window.close();
-  } catch { flash('not available here'); }
-});
+
 
 // ============ Per-site default note ============
 function currentSitePattern() {
@@ -974,6 +995,7 @@ function currentSiteIsDefault() {
 
 function updateDefaultButton() {
   const btn = $('defaultBtn');
+  if (!btn) return;
   const applicable = !!currentSitePattern();
   btn.disabled = !applicable;
   btn.style.opacity = applicable ? '1' : '0.5';
@@ -985,20 +1007,7 @@ function updateDefaultButton() {
     : 'Not available on this page';
 }
 
-$('defaultBtn').addEventListener('click', async () => {
-  const pat = currentSitePattern();
-  if (!pat) return flash('no site');
-  state.settings.siteDefaults = state.settings.siteDefaults || {};
-  if (state.settings.siteDefaults[pat] === state.activeId) {
-    delete state.settings.siteDefaults[pat];
-    flash('default removed');
-  } else {
-    state.settings.siteDefaults[pat] = state.activeId;
-    flash(`default set for ${new URL(state.currentTab.url).host}`);
-  }
-  await storageSet({ settings: state.settings });
-  updateDefaultButton();
-});
+
 
 // ============ Markdown / checklist preview ============
 // Minimal markdown · headings, bold, italic, code, links, lists, blockquotes, hr.
@@ -1158,13 +1167,20 @@ preview.addEventListener('click', async (e) => {
   renderPreview();
 });
 
-$('previewBtn').addEventListener('click', () => {
-  state.previewOn = !state.previewOn;
+function togglePreview(force) {
+  state.previewOn = (force !== undefined) ? force : !state.previewOn;
   $('previewBtn').classList.toggle('active', state.previewOn);
   editor.hidden = state.previewOn;
   preview.hidden = !state.previewOn;
+  
+  // Disable toolbar buttons except the preview toggle itself
+  const toolbarButtons = document.querySelectorAll('.toolbar button:not(#previewBtn)');
+  toolbarButtons.forEach(btn => btn.disabled = state.previewOn);
+  
   if (state.previewOn) renderPreview();
-});
+}
+
+$('previewBtn').addEventListener('click', () => togglePreview());
 
 // ============ History view ============
 $('historyBtn').addEventListener('click', () => {
@@ -1387,7 +1403,6 @@ function runSearch() {
         state.activeId = r.id;
         await storageSet({ activeId: state.activeId });
         loadActive();
-        updatePinButton();
         updateDefaultButton();
         updateTagUI();
         showView('editorView');
@@ -1426,7 +1441,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
     if (n && editor.value !== n.content && document.activeElement !== editor) {
       loadActive();
     }
-    updatePinButton();
+    updateDefaultButton();
     updateTagUI();
   }
   if (changes.history) {
@@ -1644,15 +1659,19 @@ function setUIMode() {
     document.body.classList.add('is-popup');
     
     // Toolbar: only requested buttons
-    const allowedToolbar = ['copyBtn', 'cutBtn', 'pasteBtn', 'boldBtn', 'checkBtn', 'tableBtn'];
-    document.querySelectorAll('.toolbar .text-btn').forEach(btn => {
+    const allowedToolbar = [
+      'undoBtn', 'redoBtn', 'pasteBtn', 'cutBtn', 'copyBtn', 
+      'checkBtn', 'ulBtn', 'olBtn', 'boldBtn', 'italicBtn', 'codeBtn', 
+      'previewBtn', 'downloadBtn'
+    ];
+    document.querySelectorAll('.toolbar button').forEach(btn => {
       btn.hidden = !allowedToolbar.includes(btn.id);
     });
 
-    // Editor Header: only goHome, themeBtn, optionsBtn
-    const allowedEditorHeader = ['goHome', 'themeBtn', 'optionsBtn'];
-    document.querySelectorAll('#editorView .header .icon-btn').forEach(btn => {
-      btn.hidden = !allowedEditorHeader.includes(btn.id);
+    // Editor Header: only goHome, activeNoteLabel, newNote, themeBtn, optionsBtn
+    const allowedEditorHeader = ['goHome', 'activeNoteLabel', 'newNote', 'themeBtn', 'optionsBtn'];
+    document.querySelectorAll('#editorView .header .icon-btn, #editorView .header .qn-active-label').forEach(el => {
+      el.hidden = !allowedEditorHeader.includes(el.id);
     });
 
     // Home Header: theme, options, and newNote (essential for "homepage as it is")
@@ -1661,10 +1680,9 @@ function setUIMode() {
       btn.hidden = !allowedHomeHeader.includes(btn.id);
     });
 
-    // Hide extra elements
     const hideSelectors = [
-      '.opacity-group', '.sep', '.tool-sep', '#activeNoteLabel', 
-      '#shapeBtn', '#shapeMenu', '.rz', '.footer .muted', '#shapeMenu'
+      '.opacity-group', '.sep', '.tool-sep', 
+      '#shapeBtn', '#shapeMenu', '.rz', '.footer .muted'
     ];
     hideSelectors.forEach(sel => {
       document.querySelectorAll(sel).forEach(el => {
@@ -1673,11 +1691,13 @@ function setUIMode() {
       });
     });
 
-    // Standard popup dimensions
-    document.documentElement.style.width = '450px';
-    document.body.style.width = '450px';
-    document.documentElement.style.height = '600px';
-    document.body.style.height = '600px';
+    // Standard popup dimensions (do not force in standalone mode)
+    if (!document.documentElement.classList.contains('standalone')) {
+      document.documentElement.style.width = '500px';
+      document.body.style.width = '500px';
+      document.documentElement.style.height = '600px';
+      document.body.style.height = '600px';
+    }
   }
 }
 
@@ -1687,15 +1707,5 @@ showView = function(viewId) {
   originalShowView(viewId);
   setUIMode();
 };
-
-// Use message passing for options for consistency across all contexts
-$('optionsBtn').addEventListener('click', (e) => {
-  e.preventDefault();
-  chrome.runtime.sendMessage({ type: 'open-options' });
-});
-$('homeOptionsBtn').addEventListener('click', (e) => {
-  e.preventDefault();
-  chrome.runtime.sendMessage({ type: 'open-options' });
-});
 
 setUIMode();

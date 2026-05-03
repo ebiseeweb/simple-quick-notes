@@ -134,30 +134,24 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
 
 // === Action State Controller ===
 async function refreshActionState(tabId, tabUrl) {
-  if (!tabId) {
-    // Global update
-    const { settings } = await chrome.storage.local.get('settings');
-    const view = settings?.defaultView || 'float';
-    if (view === 'popup') {
-      await chrome.action.setPopup({ popup: 'popup.html?mode=popup' });
-    } else {
-      await chrome.action.setPopup({ popup: '' });
-    }
-    return;
-  }
   const { settings } = await chrome.storage.local.get('settings');
   const view = settings?.defaultView || 'float';
 
+  // If globally in popup mode, use the popup everywhere.
   if (view === 'popup') {
-    await chrome.action.setPopup({ popup: 'popup.html?mode=popup' }); // Global
+    await chrome.action.setPopup({ popup: 'popup.html?mode=popup' });
     return;
-  } else {
-    // Reset global popup if not in popup mode
-    await chrome.action.setPopup({ popup: '' });
+  }
+
+  // Float mode: Global default is the popup fallback.
+  // This ensures that on new/restricted tabs, the popup opens on the first click.
+  if (!tabId) {
+    await chrome.action.setPopup({ popup: 'popup.html?mode=popup' });
+    return;
   }
 
   // Check if injectable (source of truth from openOnTab)
-  const isRestricted = tabUrl && (
+  const isRestricted = !tabUrl || (
     /^(chrome|chrome-extension|edge|brave):/.test(tabUrl) ||
     /^https:\/\/chrome\.google\.com\/webstore/.test(tabUrl) ||
     /^https:\/\/chromewebstore\.google\.com/.test(tabUrl) ||
@@ -166,9 +160,10 @@ async function refreshActionState(tabId, tabUrl) {
   const isInjectable = tabUrl && !isRestricted && (tabUrl.startsWith('http') || tabUrl.startsWith('file') || tabUrl.startsWith('about:blank'));
 
   if (isInjectable) {
-    await chrome.action.setPopup({ tabId, popup: '' }); // Trigger onClicked for this tab
+    await chrome.action.setPopup({ tabId, popup: '' }); // Trigger onClicked for this tab (float)
   } else {
-    await chrome.action.setPopup({ tabId, popup: 'popup.html?mode=popup' }); // Fallback for this tab
+    // Re-enforce fallback for this restricted tab
+    await chrome.action.setPopup({ tabId, popup: 'popup.html?mode=popup' });
   }
 }
 
@@ -230,11 +225,13 @@ chrome.action.onClicked.addListener(async (tab) => {
 async function openOnTab(tab) {
   if (!tab || !tab.id) return;
   // Strictly restricted pages where injection is guaranteed to fail.
-  if (tab.url && (
+  const isRestricted = !tab.url || (
       /^(chrome|chrome-extension|edge|brave|about):/.test(tab.url) ||
       /^https:\/\/chrome\.google\.com\/webstore/.test(tab.url) ||
       /^https:\/\/chromewebstore\.google\.com/.test(tab.url)
-  )) {
+  );
+
+  if (isRestricted) {
     // Already handled by setPopup fallback in most cases, 
     // but if we are here via keyboard shortcut, we need a fallback.
     // Use windows.create popup to feel more like a popup.

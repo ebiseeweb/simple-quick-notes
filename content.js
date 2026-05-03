@@ -14,7 +14,7 @@
     'notes', 'activeId', 'theme', 'history',
     'settings', 'panel', 'shape', 'opacity',
     'split', 'splitDir', 'pane2Id', 'paneRatio',
-    'fontSize', 'zen', 'images', 'customColors'
+    'fontSize', 'zen', 'images', 'customColors', 'lastView'
   ];
   const MAX_HISTORY = 200;
 
@@ -178,6 +178,8 @@
 
     if (perSite) {
       currentView = 'editor';
+    } else if (d.lastView && (d.lastView === 'home' || d.lastView === 'editor')) {
+      currentView = d.lastView;
     } else {
       currentView = 'home';
     }
@@ -186,14 +188,15 @@
   function showView(viewId) {
     if (!shadow) return;
     const views = ['homeView', 'editorView', 'searchView', 'historyView'];
-    const activeId = views.find(v => !shadow.getElementById(v).hidden);
-    if (activeId && activeId !== 'searchView' && activeId !== 'historyView') {
-      lastView = activeId.replace('View', '');
-    }
     
     views.forEach(v => shadow.getElementById(v).hidden = true);
     shadow.getElementById(viewId).hidden = false;
     currentView = viewId.replace('View', '');
+
+    // Save location
+    if (viewId === 'homeView' || viewId === 'editorView') {
+      storageSet({ lastView: currentView });
+    }
     
     if (viewId === 'homeView') renderHome();
     if (viewId === 'searchView') {
@@ -516,6 +519,12 @@
     background: var(--accent-soft);
     color: var(--accent);
     border-color: var(--accent);
+  }
+  .qn-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+    filter: grayscale(0.9);
+    pointer-events: none;
   }
   .qn-btn svg {
     width: 14px; height: 14px;
@@ -2646,6 +2655,7 @@
     });
 
     shadow.getElementById('homeNewNote').addEventListener('click', async () => {
+      if (previewOn) togglePreview(false); // Disable preview
       const note = { id: genId(), title: 'Untitled', content: '', updatedAt: Date.now(), pinned: false };
       state.notes.push(note);
       state.activeId = note.id;
@@ -2675,6 +2685,7 @@
 
     shadow.getElementById('newNote').addEventListener('click', async () => {
       await save();
+      if (previewOn) togglePreview(false); // Disable preview
       const note = { id: genId(), title: 'Untitled', content: '', updatedAt: Date.now(), pinned: false };
       state.notes.push(note);
       state.activeId = note.id;
@@ -3006,14 +3017,22 @@
       }, 0);
     });
 
-    shadow.getElementById('previewBtn').addEventListener('click', () => {
-      previewOn = !previewOn;
-      shadow.getElementById('previewBtn').classList.toggle('qn-active', previewOn);
+    function togglePreview(force) {
+      previewOn = (force !== undefined) ? force : !previewOn;
+      const btn = shadow.getElementById('previewBtn');
+      btn.classList.toggle('qn-active', previewOn);
       wrap.classList.toggle('qn-preview-on', previewOn);
       textarea.hidden = previewOn;
       previewEl.hidden = !previewOn;
+      
+      // Disable toolbar buttons when preview is active
+      const toolbarButtons = shadow.querySelectorAll('#toolbar .qn-btn:not(#previewBtn)');
+      toolbarButtons.forEach(b => b.disabled = previewOn);
+      
       if (previewOn) renderPreview();
-    });
+    }
+
+    shadow.getElementById('previewBtn').addEventListener('click', () => togglePreview());
 
     // ===== Zoom controls =====
     const ZOOM_STEP = 1;
@@ -3299,6 +3318,8 @@
       state.theme = state.theme === 'dark' ? 'light' : 'dark';
       wrap.dataset.theme = state.theme;
       shadow.getElementById('themeBtn').innerHTML = svgIcon(state.theme === 'dark' ? 'sun' : 'bat');
+      const homeThemeBtn = shadow.getElementById('homeThemeBtn');
+      if (homeThemeBtn) homeThemeBtn.innerHTML = svgIcon(state.theme === 'dark' ? 'sun' : 'bat');
       await storageSet({ theme: state.theme });
     });
 
@@ -3486,14 +3507,8 @@
     host.style.display = '';
     visible = true;
 
-    // Always boot to home unless site-specific default exists
-    const perSite = pickDefaultNoteId(location.href);
-    if (perSite) {
-      state.activeId = perSite;
-      showView('editorView');
-    } else {
-      showView('homeView');
-    }
+    // Use the view determined during loadState or previous session
+    showView(currentView + 'View');
 
     if (shadow) {
       const wrap = shadow.getElementById('wrap');
@@ -3502,11 +3517,9 @@
     loadActiveIntoEditor();
     maybeAutoPaste();
 
-    if (focus) {
+    if (focus && currentView === 'editor' && textarea) {
       setTimeout(() => {
-        if (iframe && iframe.contentWindow) {
-          iframe.contentWindow.postMessage({ type: 'focus-editor' }, '*');
-        }
+        textarea.focus();
       }, 150);
     }
   }
