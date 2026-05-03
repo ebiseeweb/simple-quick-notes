@@ -3,6 +3,7 @@ node_modules/
 
 # Testing
 coverage/
+tests/
 
 # OS Files
 .DS_Store
@@ -29,3 +30,9 @@ Thumbs.db
 
 # Developer
 .dev
+
+# Test / Utilities (Untracked)
+utils.js
+vitest.config.js
+package-lock.json
+package.json

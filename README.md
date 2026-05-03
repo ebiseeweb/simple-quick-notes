@@ -25,6 +25,11 @@ Quick Notes is a lightweight Chrome extension for keeping notes while you browse
 
 Think of it as a scratchpad, journal, clipboard-assistant, and Markdown editor rolled into one tool that's always a keystroke away.
 
+## What's different?
+- **Popup mode**: Alongside float mode, a popup mode has been added. This mode is designed specifically for text editors with a more minimalist display and also serves as a fallback to replace the standalone popup. Users can choose the mode that fits their needs.
+- **Added buttons**: Several buttons for editing have been added, such as undo, redo, and others, along with updates to some logic.
+- And a few minor tweaks to QOL, UI, logic and other elements.
+
 ## Screenshots
 
 <img width="1442" height="907" alt="Capture d&#39;écran 2026-04-23 100910" src="https://github.com/user-attachments/assets/a06448ef-6149-40e9-a538-dd302a7abe72" />

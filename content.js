@@ -1256,6 +1256,9 @@
         <button class="qn-btn" id="homeHistoryBtn" title="History">${svgIcon('clock')}</button>
         <button class="qn-btn" id="homeThemeBtn" title="Toggle theme">${svgIcon('sun')}</button>
         <button class="qn-btn" id="homeOptionsBtn" title="Options">${svgIcon('gear')}</button>
+        <div class="qn-bar-sep"></div>
+        <button class="qn-btn" id="homeModeToggle" title="Switch to Popup Mode">${svgIcon('layout')}</button>
+        <button class="qn-btn" id="homeHideBtn" title="Hide panel">${svgIcon('eyeOff')}</button>
       </div>
       <div class="qn-home-content">
         <ul id="noteList" class="qn-list"></ul>
@@ -1282,7 +1285,8 @@
         <button class="qn-btn" id="zenBtn" title="Focus mode (hide toolbars for distraction-free writing)">${svgIcon('zen')}</button>
         <button class="qn-btn" id="optionsBtn" title="Options">${svgIcon('gear')}</button>
         <div class="qn-bar-sep"></div>
-        <button class="qn-btn" id="closeBtn" title="Hide panel (click extension icon or Alt+N to reopen)">${svgIcon('minimize')}</button>
+        <button class="qn-btn" id="modeToggle" title="Switch to Popup Mode">${svgIcon('layout')}</button>
+        <button class="qn-btn" id="closeBtn" title="Hide panel">${svgIcon('minimize')}</button>
       </div>
 
       <div class="qn-bar" id="toolbar">
@@ -1549,6 +1553,10 @@
       p1.style.flex = '1 1 0';
       shadow.getElementById('splitBtn').classList.remove('qn-active');
     }
+
+    // Disable preview button if split mode is on
+    const previewBtn = shadow.getElementById('previewBtn');
+    if (previewBtn) previewBtn.disabled = state.split;
   }
 
   // Populate pane 1's own note selector (visible only when split is on).
@@ -1709,6 +1717,9 @@
       arrowLeft: '<path d="M15 18l-6-6 6-6"/>',
       tag: '<path d="M20 12V4a1 1 0 0 0-1-1h-8L3 11l9 9 8-8z"/><circle cx="8" cy="8" r="1.5" fill="currentColor"/>',
       pencil: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>',
+      monitor: '<rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>',
+      layout: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/>',
+      eyeOff: '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-10-8-10-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 10 8 10 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>',
       split: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 3v18"/>',
       splitFlip: '<path d="M3 8h18M3 16h18"/><path d="M7 5l-4 3 4 3"/><path d="M17 13l4 3-4 3"/>',
       swap: '<path d="M8 3L4 7l4 4"/><path d="M4 7h16"/><path d="M16 21l4-4-4-4"/><path d="M20 17H4"/>',
@@ -2683,6 +2694,26 @@
       chrome.runtime.sendMessage({ type: 'open-options' });
     });
 
+    shadow.getElementById('homeModeToggle').addEventListener('click', async () => {
+      await save();
+      state.settings.defaultView = 'popup';
+      await storageSet({ settings: state.settings });
+      chrome.runtime.sendMessage({ type: 'refresh-action-state' });
+      hide();
+    });
+
+    shadow.getElementById('modeToggle').addEventListener('click', async () => {
+      await save();
+      state.settings.defaultView = 'popup';
+      await storageSet({ settings: state.settings });
+      chrome.runtime.sendMessage({ type: 'refresh-action-state' });
+      hide();
+    });
+
+    shadow.getElementById('homeHideBtn').addEventListener('click', () => {
+      hide();
+    });
+
     shadow.getElementById('newNote').addEventListener('click', async () => {
       await save();
       if (previewOn) togglePreview(false); // Disable preview
@@ -3028,6 +3059,10 @@
       // Disable toolbar buttons when preview is active
       const toolbarButtons = shadow.querySelectorAll('#toolbar .qn-btn:not(#previewBtn)');
       toolbarButtons.forEach(b => b.disabled = previewOn);
+
+      // Disable split button in header too
+      const splitBtn = shadow.getElementById('splitBtn');
+      if (splitBtn) splitBtn.disabled = previewOn;
       
       if (previewOn) renderPreview();
     }

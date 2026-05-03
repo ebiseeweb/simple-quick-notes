@@ -114,24 +114,6 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   setTimeout(() => chrome.action.setBadgeText({ text: '' }), 1500);
 });
 
-// === Tab watcher: auto-show floating panel on configured URL patterns ===
-chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
-  if (changeInfo.status !== 'complete' || !tab.url) return;
-  
-  const { settings } = await chrome.storage.local.get('settings');
-  // Refresh state for all tabs to ensure Popup Mode is applied correctly
-  refreshActionState(tabId, tab.url);
-
-  if (!/^https?:/.test(tab.url)) return;
-  if (!settings?.floatingPanelSites?.length) return;
-  if (matchesAny(tab.url, settings.floatingPanelSites)) {
-    try {
-      await injectFloating(tabId);
-      await chrome.tabs.sendMessage(tabId, { type: 'show' });
-    } catch {/* ignored */}
-  }
-});
-
 // === Action State Controller ===
 async function refreshActionState(tabId, tabUrl) {
   const { settings } = await chrome.storage.local.get('settings');
@@ -139,7 +121,11 @@ async function refreshActionState(tabId, tabUrl) {
 
   // If globally in popup mode, use the popup everywhere.
   if (view === 'popup') {
-    await chrome.action.setPopup({ popup: 'popup.html?mode=popup' });
+    if (tabId) {
+      await chrome.action.setPopup({ tabId, popup: 'popup.html?mode=popup' });
+    } else {
+      await chrome.action.setPopup({ popup: 'popup.html?mode=popup' });
+    }
     return;
   }
 
@@ -150,7 +136,7 @@ async function refreshActionState(tabId, tabUrl) {
     return;
   }
 
-  // Check if injectable (source of truth from openOnTab)
+  // Check if injectable
   const isRestricted = !tabUrl || (
     /^(chrome|chrome-extension|edge|brave):/.test(tabUrl) ||
     /^https:\/\/chrome\.google\.com\/webstore/.test(tabUrl) ||
@@ -177,6 +163,17 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.status === 'complete' || changeInfo.url) {
     refreshActionState(tabId, tab.url);
+    
+    // Auto-show logic
+    if (changeInfo.status === 'complete' && tab.url && /^https?:/.test(tab.url)) {
+      chrome.storage.local.get('settings').then(({ settings }) => {
+        if (settings?.floatingPanelSites?.length && matchesAny(tab.url, settings.floatingPanelSites)) {
+          injectFloating(tabId).then(() => {
+            chrome.tabs.sendMessage(tabId, { type: 'show' });
+          }).catch(() => {});
+        }
+      });
+    }
   }
 });
 
@@ -205,6 +202,13 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (!msg) return;
   if (msg.type === 'toggle-floating' && msg.tabId) {
     toggleFloating(msg.tabId);
+    sendResponse({ ok: true });
+    return;
+  }
+  if (msg.type === 'refresh-action-state') {
+    chrome.tabs.query({ active: true, currentWindow: true }).then(([tab]) => {
+      if (tab) refreshActionState(tab.id, tab.url);
+    });
     sendResponse({ ok: true });
     return;
   }
@@ -244,7 +248,7 @@ async function openOnTab(tab) {
     return;
   }
   const { settings } = await chrome.storage.local.get('settings');
-  const focus = settings?.defaultView === 'float-focus';
+  const focus = settings?.defaultView !== 'popup';
   try {
     await injectFloating(tab.id);
     await chrome.tabs.sendMessage(tab.id, { type: 'toggle', focus });
@@ -270,7 +274,7 @@ async function injectFloating(tabId) {
 async function toggleFloating(tabId) {
   try {
     const { settings } = await chrome.storage.local.get('settings');
-    const focus = settings?.defaultView === 'float-focus';
+    const focus = settings?.defaultView !== 'popup';
     await injectFloating(tabId);
     await chrome.tabs.sendMessage(tabId, { type: 'toggle', focus });
   } catch (e) {

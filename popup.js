@@ -113,9 +113,10 @@ async function load() {
   state.theme = data.theme || 'dark';
   state.history = data.history || [];
   state.settings = Object.assign(
-    { autoPasteSites: [], floatingPanelSites: [], siteDefaults: {}, lastAutoPastedHash: '' },
+    { autoPasteSites: [], floatingPanelSites: [], siteDefaults: {}, lastAutoPastedHash: '', defaultView: 'float' },
     data.settings || {}
   );
+  if (state.settings.defaultView === 'float-focus') state.settings.defaultView = 'float';
   state.shape = normalizeShape(data.shape);
   state.size = (data.size && typeof data.size.w === 'number') ? data.size : { w: 460, h: 560 };
   const rawOp = typeof data.opacity === 'number' ? data.opacity : 1;
@@ -177,6 +178,20 @@ async function load() {
     if (data.lastView === 'editorView') editor.focus();
   } else {
     showView('homeView');
+  }
+
+  // Disable mode switch on restricted tabs
+  const tabUrl = state.currentTab?.url;
+  const isRestricted = !tabUrl || (
+    /^(chrome|chrome-extension|edge|brave|about):/.test(tabUrl) ||
+    /^https:\/\/chrome\.google\.com\/webstore/.test(tabUrl) ||
+    /^https:\/\/chromewebstore\.google\.com/.test(tabUrl)
+  );
+  if (isRestricted) {
+    const mt = $('modeToggle');
+    const hmt = $('homeModeToggle');
+    if (mt) { mt.disabled = true; mt.title = "Float mode not available on this page"; }
+    if (hmt) { hmt.disabled = true; hmt.title = "Float mode not available on this page"; }
   }
 
   await maybeAutoPaste();
@@ -590,6 +605,22 @@ $('homeNewNote').addEventListener('click', () => {
 $('homeSearchBtn').addEventListener('click', () => showView('searchView'));
 $('homeHistoryBtn').addEventListener('click', () => showView('historyView'));
 $('homeThemeBtn').addEventListener('click', toggleTheme);
+
+$('homeModeToggle').addEventListener('click', async () => {
+  await save();
+  state.settings.defaultView = 'float';
+  await storageSet({ settings: state.settings });
+  chrome.runtime.sendMessage({ type: 'refresh-action-state' });
+  window.close();
+});
+
+$('modeToggle').addEventListener('click', async () => {
+  await save();
+  state.settings.defaultView = 'float';
+  await storageSet({ settings: state.settings });
+  chrome.runtime.sendMessage({ type: 'refresh-action-state' });
+  window.close();
+});
 
 function startInlineRename() {
   // Logic merged into startRenameFromHome
@@ -1669,13 +1700,13 @@ function setUIMode() {
     });
 
     // Editor Header: only goHome, activeNoteLabel, newNote, themeBtn, optionsBtn
-    const allowedEditorHeader = ['goHome', 'activeNoteLabel', 'newNote', 'themeBtn', 'optionsBtn'];
+    const allowedEditorHeader = ['goHome', 'activeNoteLabel', 'newNote', 'themeBtn', 'optionsBtn', 'modeToggle'];
     document.querySelectorAll('#editorView .header .icon-btn, #editorView .header .qn-active-label').forEach(el => {
       el.hidden = !allowedEditorHeader.includes(el.id);
     });
 
     // Home Header: theme, options, and newNote (essential for "homepage as it is")
-    const allowedHomeHeader = ['homeThemeBtn', 'homeOptionsBtn', 'homeNewNote'];
+    const allowedHomeHeader = ['homeThemeBtn', 'homeOptionsBtn', 'homeNewNote', 'homeModeToggle'];
     document.querySelectorAll('#homeView .header .icon-btn').forEach(btn => {
       btn.hidden = !allowedHomeHeader.includes(btn.id);
     });
@@ -1684,8 +1715,14 @@ function setUIMode() {
       '.opacity-group', '.sep', '.tool-sep', 
       '#shapeBtn', '#shapeMenu', '.rz', '.footer .muted'
     ];
+    // We allow .sep if it's before the toggle
     hideSelectors.forEach(sel => {
       document.querySelectorAll(sel).forEach(el => {
+        if (el.classList.contains('sep') && el.nextElementSibling && (el.nextElementSibling.id === 'modeToggle' || el.nextElementSibling.id === 'homeModeToggle')) {
+           el.hidden = false;
+           el.style.display = '';
+           return;
+        }
         el.hidden = true;
         el.style.display = 'none'; // Double down
       });

@@ -18,6 +18,7 @@ async function loadAll() {
     { autoPasteSites: [], floatingPanelSites: [], siteDefaults: {}, defaultView: 'float' },
     d.settings || {}
   );
+  if (settings.defaultView === 'float-focus') settings.defaultView = 'float';
   notesCache = d.notes || [];
   renderList(autoPasteList, settings.autoPasteSites, 'auto-paste');
   renderList(floatList, settings.floatingPanelSites, 'floating');
