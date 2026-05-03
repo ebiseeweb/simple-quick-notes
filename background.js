@@ -156,11 +156,12 @@ chrome.action.onClicked.addListener(async (tab) => {
 
 async function openOnTab(tab) {
   if (!tab || !tab.id) return;
-  // Chrome-internal pages can't be injected. Fall back to opening the
-  // standalone popup.html in a new tab window.
-  if (!tab.url || /^(chrome|chrome-extension|edge|brave|about|file):/.test(tab.url)
-      || /^https:\/\/chrome\.google\.com\/webstore/.test(tab.url)
-      || /^https:\/\/chromewebstore\.google\.com/.test(tab.url)) {
+  // Strictly restricted pages where injection is guaranteed to fail.
+  if (tab.url && (
+      /^(chrome|chrome-extension|edge|brave):/.test(tab.url) ||
+      /^https:\/\/chrome\.google\.com\/webstore/.test(tab.url) ||
+      /^https:\/\/chromewebstore\.google\.com/.test(tab.url)
+  )) {
     chrome.tabs.create({ url: chrome.runtime.getURL('popup.html?standalone=1') });
     return;
   }

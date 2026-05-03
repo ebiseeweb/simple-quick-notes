@@ -48,6 +48,7 @@ const state = {
 };
 
 let saveTimer = null;
+let currentView = 'home';
 // Guard against focus-steal echoes from our own writes.
 let selfWriting = 0;
 function isContextValid() {
@@ -83,6 +84,7 @@ const VALID_SHAPES = ['rectangle', 'rounded', 'hexagon', 'circle'];
 function normalizeShape(s) { return Utils.normalizeShape(s); }
 
 function showView(viewId) {
+  currentView = viewId.replace('View', '');
   const views = [homeView, editorView, searchView, historyView];
   const active = views.find(v => !v.hidden);
   if (active && active.id !== 'searchView' && active.id !== 'historyView') {
