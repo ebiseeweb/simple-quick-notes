@@ -48,13 +48,21 @@ const state = {
 };
 
 let saveTimer = null;
-// True while we're writing to storage from within this popup — used to
-// ignore the onChanged echo and prevent focus-stealing re-renders.
+// Guard against focus-steal echoes from our own writes.
 let selfWriting = 0;
+function isContextValid() {
+  return !!chrome.runtime?.id;
+}
 
 async function storageSet(obj) {
+  if (!isContextValid()) return;
   selfWriting++;
   try { await chrome.storage.local.set(obj); }
+  catch (e) {
+    if (e.message.includes('Extension context invalidated')) {
+      console.warn('[QuickNotes] Extension context invalidated during write.');
+    } else throw e;
+  }
   finally {
     // Decrement on next tick so the onChanged handler (which fires async)
     // still sees the flag.
@@ -87,6 +95,7 @@ function showView(viewId) {
 
 // ============ Load / save ============
 async function load() {
+  if (!isContextValid()) return;
   const data = await chrome.storage.local.get([
     'notes', 'activeId', 'theme', 'history', 'settings', 'shape', 'size', 'opacity', 'images', 'customColors'
   ]);
@@ -386,6 +395,12 @@ function scheduleSave() {
   clearTimeout(saveTimer);
   statusEl.textContent = 'saving…';
   saveTimer = setTimeout(save, 200);
+}
+async function flushSave() {
+  if (saveTimer) {
+    clearTimeout(saveTimer);
+    await save();
+  }
 }
 
 async function save() {
@@ -1561,3 +1576,5 @@ chrome.storage.onChanged.addListener((changes) => {
     applyCustomColors();
   }
 });
+
+window.addEventListener('pagehide', flushSave);

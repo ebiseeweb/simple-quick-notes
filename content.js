@@ -34,6 +34,7 @@
   let historyCountEl = null;
   let visible = false;
   let saveTimer = null;
+  let isBootstrapping = false;
   let previewOn = false;
 
   // View management
@@ -61,9 +62,26 @@
 
   // Guard against focus-steal echoes from our own writes.
   let selfWriting = 0;
+  function isContextValid() {
+    return !!chrome.runtime?.id;
+  }
+
   async function storageSet(obj) {
+    if (!isContextValid()) {
+      console.warn('[QuickNotes] Extension context invalidated. Changes may not be saved. Please refresh the page.');
+      if (statusEl) {
+        statusEl.textContent = 'context error (refresh page)';
+        statusEl.classList.remove('qn-ok');
+      }
+      return;
+    }
     selfWriting++;
     try { await chrome.storage.local.set(obj); }
+    catch (e) {
+      if (e.message.includes('Extension context invalidated')) {
+        console.warn('[QuickNotes] Extension context invalidated during write.');
+      } else throw e;
+    }
     finally {
       setTimeout(() => { selfWriting = Math.max(0, selfWriting - 1); }, 0);
     }
@@ -91,6 +109,7 @@
 
   // ---------- Storage ----------
   async function loadState() {
+    if (!isContextValid()) return;
     const d = await chrome.storage.local.get(STATE_KEYS);
     state.notes = (d.notes && d.notes.length)
       ? d.notes
@@ -201,6 +220,7 @@
 
   // ---------- Build DOM ----------
   function buildPanel() {
+    if (document.getElementById(HOST_ID)) return;
     host = document.createElement('div');
     host.id = HOST_ID;
     host.style.cssText = 'all:initial; position:fixed; top:0; left:0; width:0; height:0; z-index:2147483647;';
@@ -1920,6 +1940,12 @@
     statusEl.classList.remove('qn-ok');
     saveTimer = setTimeout(save, 200);
   }
+  async function flushSave() {
+    if (saveTimer) {
+      clearTimeout(saveTimer);
+      await save();
+    }
+  }
   async function save() {
     const n = activeNote();
     if (!n) return;
@@ -3434,18 +3460,25 @@
     loadActiveIntoEditor();
     maybeAutoPaste();
   }
-  function hide() {
+  async function hide() {
+    await flushSave();
     if (!host) return;
     host.style.display = 'none';
     visible = false;
   }
 
   async function bootstrap() {
-    await loadState();
-    buildPanel();
-    visible = true;
-    if (textarea) textarea.focus();
-    maybeAutoPaste();
+    if (isBootstrapping || host) return;
+    isBootstrapping = true;
+    try {
+      await loadState();
+      buildPanel();
+      visible = true;
+      if (textarea) textarea.focus();
+      maybeAutoPaste();
+    } finally {
+      isBootstrapping = false;
+    }
   }
 
   // ---------- Message router ----------
@@ -3469,5 +3502,9 @@
       }
     }
     sendResponse && sendResponse({ ok: true });
+  });
+
+  window.addEventListener('pagehide', () => {
+    flushSave();
   });
 })();
