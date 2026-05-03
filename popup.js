@@ -8,6 +8,7 @@ const statusEl = $('status');
 const counter = $('counter');
 
 const editorView = $('editorView');
+const homeView = $('homeView');
 const historyView = $('historyView');
 const searchView = $('searchView');
 
@@ -18,6 +19,10 @@ const searchInput = $('searchInput');
 const searchScope = $('searchScope');
 const searchResults = $('searchResults');
 const searchCount = $('searchCount');
+
+const noteList = $('noteList');
+const noteCount = $('noteCount');
+const activeNoteLabel = $('activeNoteLabel');
 
 const MAX_HISTORY = 200;
 
@@ -38,7 +43,8 @@ const state = {
   size: { w: 460, h: 560 },
   opacity: 1,
   images: {},
-  customColors: { dark: {}, light: {} }
+  customColors: { dark: {}, light: {} },
+  lastView: 'homeView'
 };
 
 let saveTimer = null;
@@ -57,35 +63,26 @@ async function storageSet(obj) {
 }
 
 // ============ Helpers ============
-function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+function genId() { return Utils.genId(); }
 function activeNote() { return state.notes.find(n => n.id === state.activeId); }
-function deriveTitle(c) {
-  const f = (c.split('\n')[0] || '').trim().slice(0, 40);
-  return f || 'Untitled';
-}
-function hashStr(s) {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
-  return h.toString(36);
-}
-function matchPattern(url, pattern) {
-  if (!pattern || !url) return false;
-  try {
-    const re = pattern
-      .replace(/[.+?^${}()|[\]\\]/g, '\\$&')
-      .replace(/\\\*/g, '.*');
-    return new RegExp('^' + re + '$').test(url);
-  } catch { return false; }
-}
+function deriveTitle(c) { return Utils.deriveTitle(c); }
+function hashStr(s) { return Utils.hashStr(s); }
+function matchPattern(url, pattern) { return Utils.matchPattern(url, pattern); }
 const matchesAny = (url, pats) => !!pats && pats.some(p => matchPattern(url, p));
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, c =>
-    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
-}
+function escapeHtml(s) { return Utils.escapeHtml(s); }
 
 const VALID_SHAPES = ['rectangle', 'rounded', 'hexagon', 'circle'];
-function normalizeShape(s) {
-  return VALID_SHAPES.includes(s) ? s : 'rounded';
+function normalizeShape(s) { return Utils.normalizeShape(s); }
+
+function showView(viewId) {
+  const views = [homeView, editorView, searchView, historyView];
+  const active = views.find(v => !v.hidden);
+  if (active && active.id !== 'searchView' && active.id !== 'historyView') {
+    state.lastView = active.id;
+  }
+  views.forEach(v => v.hidden = true);
+  $(viewId).hidden = false;
+  if (viewId === 'homeView') renderHome();
 }
 
 // ============ Load / save ============
@@ -153,12 +150,17 @@ async function load() {
   applyShape();
   applySize();
   applyOpacity();
-  renderSelector();
   loadActive();
   updateDefaultButton();
-  updatePinButton();
   updateTagUI();
-  editor.focus();
+
+  if (perSite) {
+    showView('editorView');
+    editor.focus();
+  } else {
+    // Force Home view on every startup if no site default is active
+    showView('homeView');
+  }
 
   await maybeAutoPaste();
 }
@@ -192,15 +194,7 @@ function updateTagUI() {
 }
 
 function pickDefaultNoteId(url) {
-  if (!url) return null;
-  const map = state.settings.siteDefaults || {};
-  // Find the first matching pattern whose noteId still exists
-  for (const [pat, noteId] of Object.entries(map)) {
-    if (matchPattern(url, pat) && state.notes.some(n => n.id === noteId)) {
-      return noteId;
-    }
-  }
-  return null;
+  return Utils.pickDefaultNoteId(url, state.settings.siteDefaults, state.notes);
 }
 
 async function maybeAutoPaste() {
@@ -223,48 +217,154 @@ async function maybeAutoPaste() {
   } catch { /* clipboard denied or unavailable */ }
 }
 
-function renderSelector() {
-  // Pinned first (sorted by updatedAt desc), then unpinned (updatedAt desc)
-  const pinned = state.notes.filter(n => n.pinned)
-    .sort((a, b) => b.updatedAt - a.updatedAt);
-  const rest = state.notes.filter(n => !n.pinned)
-    .sort((a, b) => b.updatedAt - a.updatedAt);
+function renderHome() {
+  const pinned = state.notes.filter(n => n.pinned).sort((a, b) => b.updatedAt - a.updatedAt);
+  const rest = state.notes.filter(n => !n.pinned).sort((a, b) => b.updatedAt - a.updatedAt);
   const all = [...pinned, ...rest];
 
-  // Order signature — which note IDs in which order, with pin state.
-  // If this matches what's already in the DOM, we only need to update
-  // option text content and the selected flag. No innerHTML rebuild.
-  const orderSig = all.map(n => `${n.id}:${n.pinned ? 1 : 0}`).join(',');
+  noteCount.textContent = `${all.length} note${all.length === 1 ? '' : 's'}`;
+  noteList.innerHTML = '';
 
-  if (noteSelect._qnOrderSig === orderSig && noteSelect.options.length === all.length) {
-    // In-place update: no DOM structure changes, so focus is preserved.
-    for (let i = 0; i < all.length; i++) {
-      const n = all[i];
-      const opt = noteSelect.options[i];
-      const newText = (n.pinned ? '📌 ' : '') + (n.title || 'Untitled');
-      if (opt.textContent !== newText) opt.textContent = newText;
-      if (opt.value !== n.id) opt.value = n.id;
-      const shouldBeSelected = n.id === state.activeId;
-      if (opt.selected !== shouldBeSelected) opt.selected = shouldBeSelected;
-    }
-    return;
-  }
-
-  // Structure changed — rebuild from scratch.
-  noteSelect._qnOrderSig = orderSig;
-  noteSelect.innerHTML = '';
   all.forEach(n => {
-    const opt = document.createElement('option');
-    opt.value = n.id;
-    opt.textContent = (n.pinned ? '📌 ' : '') + (n.title || 'Untitled');
-    if (n.id === state.activeId) opt.selected = true;
-    noteSelect.appendChild(opt);
+    const li = document.createElement('li');
+    li.className = 'note-item';
+    li.dataset.id = n.id;
+
+    const icon = document.createElement('div');
+    icon.className = 'note-icon';
+    icon.innerHTML = `<svg class="ico"><use href="#i-pencil"/></svg>`;
+
+    const info = document.createElement('div');
+    info.className = 'note-info';
+    
+    const title = document.createElement('div');
+    title.className = 'note-title';
+    title.textContent = (n.pinned ? '📌 ' : '') + (n.title || 'Untitled');
+    
+    const meta = document.createElement('div');
+    meta.className = 'note-meta';
+    meta.textContent = new Date(n.updatedAt).toLocaleString();
+
+    info.appendChild(title);
+    info.appendChild(meta);
+
+    const actions = document.createElement('div');
+    actions.className = 'note-actions';
+
+    const pinBtn = document.createElement('button');
+    pinBtn.className = 'icon-btn' + (n.pinned ? ' active' : '');
+    pinBtn.title = n.pinned ? 'Unpin' : 'Pin';
+    pinBtn.innerHTML = `<svg class="ico"><use href="#i-pin"/></svg>`;
+    pinBtn.onclick = (e) => { e.stopPropagation(); togglePin(n.id); };
+
+    const renBtn = document.createElement('button');
+    renBtn.className = 'icon-btn';
+    renBtn.title = 'Rename';
+    renBtn.innerHTML = `<svg class="ico"><use href="#i-pencil"/></svg>`;
+    renBtn.onclick = (e) => { e.stopPropagation(); startRenameFromHome(n.id, title); };
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'icon-btn';
+    delBtn.title = 'Delete';
+    delBtn.innerHTML = `<svg class="ico"><use href="#i-trash"/></svg>`;
+    delBtn.onclick = (e) => { e.stopPropagation(); deleteNoteFromHome(n.id); };
+
+    actions.appendChild(pinBtn);
+    actions.appendChild(renBtn);
+    actions.appendChild(delBtn);
+
+    li.appendChild(icon);
+    li.appendChild(info);
+    li.appendChild(actions);
+
+    li.onclick = () => {
+      state.activeId = n.id;
+      storageSet({ activeId: n.id });
+      loadActive();
+      showView('editorView');
+      editor.focus();
+    };
+
+    noteList.appendChild(li);
   });
+}
+
+async function togglePin(id) {
+  const n = state.notes.find(note => note.id === id);
+  if (!n) return;
+  n.pinned = !n.pinned;
+  n.updatedAt = Date.now();
+  await storageSet({ notes: state.notes });
+  renderHome();
+}
+
+async function deleteNoteFromHome(id) {
+  const n = state.notes.find(note => note.id === id);
+  if (!n) return;
+  if (!confirm(`Delete "${n.title || 'Untitled'}"?`)) return;
+  
+  state.notes = state.notes.filter(note => note.id !== id);
+  if (state.notes.length === 0) {
+    state.notes = [{ id: genId(), title: 'Untitled', content: '', updatedAt: Date.now(), pinned: false }];
+  }
+  if (state.activeId === id) state.activeId = state.notes[0].id;
+  
+  await storageSet({ notes: state.notes, activeId: state.activeId });
+  renderHome();
+}
+
+function startRenameFromHome(id, titleEl) {
+  const n = state.notes.find(note => note.id === id);
+  if (!n) return;
+  const current = n.title || '';
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'rename-input';
+  input.value = current;
+  input.onclick = (e) => e.stopPropagation();
+  
+  const originalDisplay = titleEl.style.display;
+  titleEl.style.display = 'none';
+  titleEl.parentNode.insertBefore(input, titleEl);
+  
+  let committed = false;
+  async function commit(save) {
+    if (committed) return;
+    committed = true;
+    input.remove();
+    titleEl.style.display = originalDisplay;
+    if (!save) return;
+    const t = input.value.trim().slice(0, 80);
+    if (t === current) return;
+    if (t) {
+      n.title = t;
+      n.titleLocked = true;
+    } else {
+      n.titleLocked = false;
+      n.title = deriveTitle(n.content);
+    }
+    n.updatedAt = Date.now();
+    await storageSet({ notes: state.notes });
+    renderHome();
+  }
+  
+  input.onkeydown = (e) => {
+    if (e.key === 'Enter') commit(true);
+    if (e.key === 'Escape') commit(false);
+  };
+  input.onblur = () => commit(true);
+  input.focus();
+  input.select();
+}
+
+function renderSelector() {
+  if (currentView === 'home') renderHome();
 }
 
 function loadActive() {
   const n = activeNote();
   editor.value = n ? n.content : '';
+  activeNoteLabel.textContent = n ? (n.title || 'Untitled') : 'Open Note';
   updateCounter();
   if (state.previewOn) renderPreview();
 }
@@ -296,8 +396,8 @@ async function save() {
   if (!n.titleLocked) {
     n.title = deriveTitle(editor.value);
   }
+  activeNoteLabel.textContent = n.title || 'Untitled';
   await storageSet({ notes: state.notes, activeId: state.activeId });
-  renderSelector();
   statusEl.textContent = 'saved ✓';
 }
 
@@ -382,19 +482,9 @@ editor.addEventListener('paste', async (ev) => {
   }
 });
 
-noteSelect.addEventListener('change', async () => {
-  // Capture target before save() — save calls renderSelector which would
-  // otherwise reset the dropdown to the old active note.
-  const targetId = noteSelect.value;
+$('goHome').addEventListener('click', async () => {
   await save();
-  state.activeId = targetId;
-  await storageSet({ activeId: state.activeId });
-  renderSelector();
-  loadActive();
-  updatePinButton();
-  updateDefaultButton();
-  updateTagUI();
-  editor.focus();
+  showView('homeView');
 });
 
 $('newNote').addEventListener('click', async () => {
@@ -403,106 +493,29 @@ $('newNote').addEventListener('click', async () => {
   state.notes.push(note);
   state.activeId = note.id;
   await storageSet({ notes: state.notes, activeId: state.activeId });
-  renderSelector(); loadActive();
-  updatePinButton(); updateDefaultButton(); updateTagUI();
+  loadActive();
+  showView('editorView');
   editor.focus();
 });
 
-$('deleteNote').addEventListener('click', async () => {
-  if (state.notes.length === 1) {
-    if (!confirm('Clear this note?')) return;
-    const n = activeNote();
-    n.content = ''; n.title = 'Untitled'; n.updatedAt = Date.now();
-    await storageSet({ notes: state.notes });
-    loadActive(); renderSelector(); flash('cleared');
-    return;
-  }
-  if (!confirm(`Delete "${activeNote().title}"?`)) return;
-  // Also clear any siteDefaults pointing to this note
-  const deletedId = state.activeId;
-  const newDefaults = {};
-  for (const [pat, id] of Object.entries(state.settings.siteDefaults || {})) {
-    if (id !== deletedId) newDefaults[pat] = id;
-  }
-  state.settings.siteDefaults = newDefaults;
-  state.notes = state.notes.filter(n => n.id !== deletedId);
-  state.activeId = state.notes[0].id;
-  await storageSet({
-    notes: state.notes, activeId: state.activeId, settings: state.settings
-  });
-  renderSelector(); loadActive();
-  updatePinButton(); updateDefaultButton(); updateTagUI();
-  flash('deleted');
+// Homepage button listeners
+$('homeNewNote').addEventListener('click', () => {
+  const note = { id: genId(), title: 'Untitled', content: '', updatedAt: Date.now(), pinned: false };
+  state.notes.push(note);
+  state.activeId = note.id;
+  storageSet({ notes: state.notes, activeId: state.activeId });
+  loadActive();
+  showView('editorView');
+  editor.focus();
 });
 
-// ============ Pinned notes ============
-function updatePinButton() {
-  const n = activeNote();
-  const btn = $('pinNote');
-  if (!n) return;
-  btn.classList.toggle('active', !!n.pinned);
-  btn.title = n.pinned ? 'Unpin this note' : 'Pin this note to top';
-}
-
-$('pinNote').addEventListener('click', async () => {
-  const n = activeNote();
-  if (!n) return;
-  n.pinned = !n.pinned;
-  n.updatedAt = Date.now();
-  await storageSet({ notes: state.notes });
-  renderSelector();
-  updatePinButton();
-  flash(n.pinned ? 'pinned' : 'unpinned');
-});
-
-$('renameNote').addEventListener('click', () => startInlineRename());
+$('homeSearchBtn').addEventListener('click', () => showView('searchView'));
+$('homeHistoryBtn').addEventListener('click', () => showView('historyView'));
+$('homeThemeBtn').addEventListener('click', toggleTheme);
+$('homeOptionsBtn').addEventListener('click', () => chrome.runtime.openOptionsPage());
 
 function startInlineRename() {
-  const n = activeNote();
-  if (!n) return;
-  const existing = document.getElementById('renameInput');
-  if (existing) { existing.focus(); existing.select(); return; }
-
-  const current = n.title || '';
-  const input = document.createElement('input');
-  input.type = 'text';
-  input.id = 'renameInput';
-  input.className = 'rename-input';
-  input.value = current;
-  input.maxLength = 80;
-  input.title = 'Enter to save · Esc to cancel · empty = auto-derive';
-
-  noteSelect.style.display = 'none';
-  noteSelect.parentNode.insertBefore(input, noteSelect);
-
-  let committed = false;
-  async function commit(save) {
-    if (committed) return;
-    committed = true;
-    input.remove();
-    noteSelect.style.display = '';
-    if (!save) return;
-    const t = (input.value || '').trim().slice(0, 80);
-    if (t === current) return;
-    if (t) {
-      n.title = t;
-      n.titleLocked = true;
-    } else {
-      n.titleLocked = false;
-      n.title = deriveTitle(n.content);
-    }
-    n.updatedAt = Date.now();
-    await storageSet({ notes: state.notes });
-    renderSelector();
-    flash(t ? 'renamed ✓' : 'title unlocked');
-  }
-
-  input.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') { e.preventDefault(); commit(true); }
-    else if (e.key === 'Escape') { e.preventDefault(); commit(false); }
-  });
-  input.addEventListener('blur', () => commit(true));
-  setTimeout(() => { input.focus(); input.select(); }, 0);
+  // Logic merged into startRenameFromHome
 }
 
 // ============ Clipboard / capture buttons ============
@@ -1103,9 +1116,8 @@ $('historyBtn').addEventListener('click', () => {
 });
 
 $('backFromHistory').addEventListener('click', () => {
-  historyView.hidden = true;
-  editorView.hidden = false;
-  editor.focus();
+  showView(state.lastView || 'homeView');
+  if (state.lastView === 'editorView') editor.focus();
 });
 
 $('clearHistoryBtn').addEventListener('click', async () => {
@@ -1126,14 +1138,7 @@ const ICONS = {
   'ctx-link': '🔗'
 };
 
-function fmtTime(ts) {
-  const d = new Date(ts);
-  const diff = (Date.now() - ts) / 1000;
-  if (diff < 60) return 'just now';
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
+function fmtTime(ts) { return Utils.fmtTime(ts); }
 
 function renderHistory() {
   historyCount.textContent = `${state.history.length} entries`;
@@ -1216,9 +1221,8 @@ function openSearch() {
 
 $('searchBtn').addEventListener('click', openSearch);
 $('backFromSearch').addEventListener('click', () => {
-  searchView.hidden = true;
-  editorView.hidden = false;
-  editor.focus();
+  showView(state.lastView || 'homeView');
+  if (state.lastView === 'editorView') editor.focus();
 });
 
 let searchTimer = null;
@@ -1310,7 +1314,7 @@ function runSearch() {
     prev.innerHTML = highlightMatch(r.type === 'note' ? r.snippet : r.preview, q);
     const meta = document.createElement('div');
     meta.className = 'meta';
-    meta.textContent = r.type === 'note'
+    meta.innerHTML = r.type === 'note'
       ? `note · ${highlightMatchText(r.title, q)} · ${fmtTime(r.ts)}`
       : `${(r.source || '').replace(/-/g, ' ')} · ${fmtTime(r.ts)}${r.title ? ' · ' + r.title.slice(0, 30) : ''}`;
     body.appendChild(prev);
@@ -1321,20 +1325,16 @@ function runSearch() {
 
     li.addEventListener('click', async () => {
       if (r.type === 'note') {
-        await save();
         state.activeId = r.id;
         await storageSet({ activeId: state.activeId });
-        renderSelector();
         loadActive();
         updatePinButton();
         updateDefaultButton();
         updateTagUI();
-        searchView.hidden = true;
-        editorView.hidden = false;
+        showView('editorView');
         editor.focus();
       } else {
-        searchView.hidden = true;
-        editorView.hidden = false;
+        showView('editorView');
         insertAtCursor(r.full);
         flash('inserted from history');
       }
@@ -1344,9 +1344,9 @@ function runSearch() {
 }
 
 function highlightMatchText(text, q) {
-  // For the meta line · plain string with match markers stripped of HTML safety
   if (!q) return text;
-  return text; // meta line is textContent anyway, so we skip the markup
+  const esc = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return text.replace(new RegExp(esc, 'gi'), m => `<mark>${m}</mark>`);
 }
 
 // ============ Storage sync ============

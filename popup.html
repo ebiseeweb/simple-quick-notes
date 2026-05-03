@@ -41,15 +41,33 @@
 
   <div id="shapeFrame">
 
-    <!-- Editor view -->
-    <div id="editorView" class="view">
+    <!-- Home (Note List) view -->
+    <div id="homeView" class="view" hidden>
       <div class="header">
-        <span class="brand"><span class="brand-dot"></span>NOTES</span>
-        <select id="noteSelect" title="Switch note"></select>
-        <button id="pinNote" class="icon-btn" title="Pin / unpin this note"><svg class="ico"><use href="#i-pin"/></svg></button>
-        <button id="renameNote" class="icon-btn" title="Rename this note"><svg class="ico"><use href="#i-pencil"/></svg></button>
+        <span class="brand"><span class="brand-dot"></span>QUICK NOTES</span>
+        <span class="spacer"></span>
+        <button id="homeNewNote" class="icon-btn" title="New note"><svg class="ico"><use href="#i-plus"/></svg></button>
+        <button id="homeSearchBtn" class="icon-btn" title="Search"><svg class="ico"><use href="#i-search"/></svg></button>
+        <button id="homeHistoryBtn" class="icon-btn" title="History"><svg class="ico"><use href="#i-clock"/></svg></button>
+        <button id="homeThemeBtn" class="icon-btn" title="Toggle theme"><svg class="ico"><use href="#i-sun"/></svg></button>
+        <button id="homeOptionsBtn" class="icon-btn" title="Options"><svg class="ico"><use href="#i-gear"/></svg></button>
+      </div>
+      <div class="home-content">
+        <ul id="noteList" class="note-list"></ul>
+      </div>
+      <div class="footer">
+        <span id="noteCount">0 notes</span>
+        <span class="muted">click to open · pen to rename · trash to delete</span>
+      </div>
+    </div>
+
+    <!-- Editor view -->
+    <div id="editorView" class="view" hidden>
+      <div class="header">
+        <button id="goHome" class="icon-btn" title="Back to note list"><svg class="ico"><use href="#i-arrow-left"/></svg></button>
+        <span id="activeNoteLabel" class="active-note-label">Open Note</span>
+        <span class="spacer"></span>
         <button id="newNote" class="icon-btn" title="New note"><svg class="ico"><use href="#i-plus"/></svg></button>
-        <button id="deleteNote" class="icon-btn" title="Delete / clear note"><svg class="ico"><use href="#i-trash"/></svg></button>
         <button id="tagBtn" class="icon-btn" title="Color tag this note"><svg class="ico"><use href="#i-tag"/></svg></button>
         <div class="sep"></div>
         <button id="searchBtn" class="icon-btn" title="Search (Ctrl+F)"><svg class="ico"><use href="#i-search"/></svg></button>
@@ -156,6 +174,7 @@
   <div class="rz rz-se" data-dir="se"></div>
   <div class="rz rz-sw" data-dir="sw"></div>
 
+  <script src="utils.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

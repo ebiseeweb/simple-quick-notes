@@ -37,7 +37,8 @@
   let previewOn = false;
 
   // View management
-  let currentView = 'editor'; // 'editor' | 'search' | 'history'
+  let currentView = 'home'; // 'home' | 'editor' | 'search' | 'history'
+  let lastView = 'home';
 
   let state = {
     notes: [],
@@ -155,6 +156,38 @@
     const storedActive = d.activeId && state.notes.some(n => n.id === d.activeId)
       ? d.activeId : state.notes[0].id;
     state.activeId = perSite || storedActive;
+
+    if (perSite) {
+      currentView = 'editor';
+    } else {
+      currentView = 'home';
+    }
+  }
+
+  function showView(viewId) {
+    if (!shadow) return;
+    const views = ['homeView', 'editorView', 'searchView', 'historyView'];
+    const activeId = views.find(v => !shadow.getElementById(v).hidden);
+    if (activeId && activeId !== 'searchView' && activeId !== 'historyView') {
+      lastView = activeId.replace('View', '');
+    }
+    
+    views.forEach(v => shadow.getElementById(v).hidden = true);
+    shadow.getElementById(viewId).hidden = false;
+    currentView = viewId.replace('View', '');
+    
+    if (viewId === 'homeView') renderHome();
+    if (viewId === 'searchView') {
+      if (searchInput) {
+        searchInput.value = '';
+        runSearch();
+        setTimeout(() => searchInput.focus(), 30);
+      }
+    }
+    if (viewId === 'historyView') renderHistory();
+    if (viewId === 'editorView') {
+      if (textarea) textarea.focus();
+    }
   }
 
   function pickDefaultNoteId(url) {
@@ -1136,6 +1169,44 @@
   /* ===== Collapsed ===== */
   /* (Collapse feature removed in v5.4.4 — minimize button hides the panel
      entirely, same as the extension icon click.) */
+
+  /* ===== Homepage / Note List ===== */
+  .qn-home-content {
+    flex: 1;
+    overflow-y: auto;
+    background: var(--bg);
+  }
+  .qn-home-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: background 120ms ease;
+  }
+  .qn-home-item:hover { background: var(--row-hover); }
+  .qn-home-item .qn-home-ico {
+    width: 18px; height: 18px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--accent); flex-shrink: 0;
+  }
+  .qn-home-item .qn-home-info { flex: 1; min-width: 0; }
+  .qn-home-item .qn-home-title {
+    font-weight: 600; font-size: 13px; color: var(--fg);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .qn-home-item .qn-home-meta { font-size: 10px; color: var(--muted); margin-top: 2px; }
+  .qn-home-item .qn-home-actions {
+    display: flex; gap: 4px; opacity: 0; transition: opacity 120ms ease;
+  }
+  .qn-home-item:hover .qn-home-actions { opacity: 1; }
+  
+  .qn-active-label {
+    font-size: 12px; font-weight: 600; color: var(--fg);
+    padding: 0 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    max-width: 140px;
+  }
 </style>
 
 <div class="qn-wrap" data-theme="${state.theme}" data-shape="${state.shape}" id="wrap">
@@ -1146,17 +1217,33 @@
 
   <div class="qn-paper" id="paper">
 
+    <!-- Home (Note List) view -->
+    <div class="qn-view" id="homeView" hidden>
+      <div class="qn-head">
+        <span class="qn-brand"><span class="qn-brand-dot"></span>QUICK NOTES</span>
+        <div style="flex:1"></div>
+        <button class="qn-btn" id="homeNewNote" title="New note">${svgIcon('plus')}</button>
+        <button class="qn-btn" id="homeSearchBtn" title="Search">${svgIcon('search')}</button>
+        <button class="qn-btn" id="homeHistoryBtn" title="History">${svgIcon('clock')}</button>
+        <button class="qn-btn" id="homeThemeBtn" title="Toggle theme">${svgIcon('sun')}</button>
+        <button class="qn-btn" id="homeOptionsBtn" title="Options">${svgIcon('gear')}</button>
+      </div>
+      <div class="qn-home-content">
+        <ul id="noteList" class="qn-list"></ul>
+      </div>
+      <div class="qn-foot">
+        <span id="noteCount">0 notes</span>
+        <span class="qn-status">click to open</span>
+      </div>
+    </div>
+
     <!-- Editor view -->
     <div class="qn-view" id="editorView">
       <div class="qn-head" id="head">
-        <span class="qn-brand">
-          <span class="qn-brand-dot"></span>NOTES
-        </span>
-        <select class="qn-select" id="noteSelect" title="Switch note"></select>
-        <button class="qn-btn" id="pinNote" title="Pin / unpin this note">${svgIcon('pin')}</button>
+        <button class="qn-btn" id="goHome" title="Back to note list">${svgIcon('arrowLeft')}</button>
+        <span id="activeNoteLabel" class="qn-active-label">Open Note</span>
+        <div style="flex:1"></div>
         <button class="qn-btn" id="newNote" title="New note">${svgIcon('plus')}</button>
-        <button class="qn-btn" id="delNote" title="Delete / clear this note">${svgIcon('trash')}</button>
-        <button class="qn-btn" id="renameBtn" title="Rename this note">${svgIcon('pencil')}</button>
         <button class="qn-btn" id="tagBtn" title="Color tag this note">${svgIcon('tag')}</button>
         <div class="qn-bar-sep"></div>
         <button class="qn-btn" id="searchBtn" title="Search (Ctrl+F)">${svgIcon('search')}</button>
@@ -1299,7 +1386,6 @@
     const wrap = shadow.getElementById('wrap');
     textarea = shadow.getElementById('text');
     previewEl = shadow.getElementById('preview');
-    noteSelect = shadow.getElementById('noteSelect');
     statusEl = shadow.getElementById('status');
     counterEl = shadow.getElementById('counter');
     searchInput = shadow.getElementById('searchInput');
@@ -1307,6 +1393,13 @@
     searchCount = shadow.getElementById('searchCount');
     historyListEl = shadow.getElementById('historyList');
     historyCountEl = shadow.getElementById('historyCount');
+    
+    // Homepage elements
+    const homeNewNote = shadow.getElementById('homeNewNote');
+    const noteList = shadow.getElementById('noteList');
+    const noteCount = shadow.getElementById('noteCount');
+    const activeNoteLabel = shadow.getElementById('activeNoteLabel');
+    const goHome = shadow.getElementById('goHome');
 
     applyGeometry(wrap);
     applyOpacity(wrap);
@@ -1314,16 +1407,13 @@
     applySplit(wrap);
     applyFontSize(wrap);
     applyZen(wrap);
-    renderPane1Selector(); renderPane2Selector();
-    loadPane2IntoEditor();
     wireEvents(wrap);
-    renderSelector();
     loadActiveIntoEditor();
-    updatePaneLabel();
-    updatePinButton();
     updateDefaultButton();
     updateTagUI();
     observePanelSize(wrap);
+
+    showView(currentView + 'View');
   }
 
   // Apply text zoom: sets font-size on both textareas and the preview.
@@ -1652,37 +1742,165 @@
   }
 
   // ---------- Rendering ----------
-  function renderSelector() {
+  function renderHome() {
+    if (!shadow) return;
+    const list = shadow.getElementById('noteList');
+    const count = shadow.getElementById('noteCount');
+    if (!list || !count) return;
+
     const pinned = state.notes.filter(n => n.pinned).sort((a, b) => b.updatedAt - a.updatedAt);
     const rest = state.notes.filter(n => !n.pinned).sort((a, b) => b.updatedAt - a.updatedAt);
     const all = [...pinned, ...rest];
-    const orderSig = all.map(n => `${n.id}:${n.pinned ? 1 : 0}`).join(',');
-    if (noteSelect._qnOrderSig === orderSig && noteSelect.options.length === all.length) {
-      for (let i = 0; i < all.length; i++) {
-        const n = all[i];
-        const opt = noteSelect.options[i];
-        const newText = (n.pinned ? '◆ ' : '') + (n.title || 'Untitled');
-        if (opt.textContent !== newText) opt.textContent = newText;
-        if (opt.value !== n.id) opt.value = n.id;
-        const shouldBeSelected = n.id === state.activeId;
-        if (opt.selected !== shouldBeSelected) opt.selected = shouldBeSelected;
-      }
-      return;
-    }
-    noteSelect._qnOrderSig = orderSig;
-    noteSelect.innerHTML = '';
+
+    count.textContent = `${all.length} note${all.length === 1 ? '' : 's'}`;
+    list.innerHTML = '';
+
     all.forEach(n => {
-      const opt = document.createElement('option');
-      opt.value = n.id;
-      opt.textContent = (n.pinned ? '◆ ' : '') + (n.title || 'Untitled');
-      if (n.id === state.activeId) opt.selected = true;
-      noteSelect.appendChild(opt);
+      const li = document.createElement('li');
+      li.className = 'qn-home-item';
+      
+      const icon = document.createElement('div');
+      icon.className = 'qn-home-ico';
+      icon.innerHTML = svgIcon('pencil');
+
+      const info = document.createElement('div');
+      info.className = 'qn-home-info';
+      
+      const title = document.createElement('div');
+      title.className = 'qn-home-title';
+      title.textContent = (n.pinned ? '📌 ' : '') + (n.title || 'Untitled');
+      
+      const meta = document.createElement('div');
+      meta.className = 'qn-home-meta';
+      meta.textContent = new Date(n.updatedAt).toLocaleString();
+
+      info.appendChild(title);
+      info.appendChild(meta);
+
+      const actions = document.createElement('div');
+      actions.className = 'qn-home-actions';
+
+      const pinBtn = document.createElement('button');
+      pinBtn.className = 'qn-btn' + (n.pinned ? ' qn-active' : '');
+      pinBtn.title = n.pinned ? 'Unpin' : 'Pin';
+      pinBtn.innerHTML = svgIcon('pin');
+      pinBtn.onclick = (e) => { e.stopPropagation(); togglePin(n.id); };
+
+      const renBtn = document.createElement('button');
+      renBtn.className = 'qn-btn';
+      renBtn.title = 'Rename';
+      renBtn.innerHTML = svgIcon('pencil');
+      renBtn.onclick = (e) => { e.stopPropagation(); startRenameFromHome(n.id, title); };
+
+      const delBtn = document.createElement('button');
+      delBtn.className = 'qn-btn';
+      delBtn.title = 'Delete';
+      delBtn.innerHTML = svgIcon('trash');
+      delBtn.onclick = (e) => { e.stopPropagation(); deleteNoteFromHome(n.id); };
+
+      actions.appendChild(pinBtn);
+      actions.appendChild(renBtn);
+      actions.appendChild(delBtn);
+
+      li.appendChild(icon);
+      li.appendChild(info);
+      li.appendChild(actions);
+
+      li.onclick = () => {
+        state.activeId = n.id;
+        storageSet({ activeId: n.id });
+        loadActiveIntoEditor();
+        showView('editorView');
+        textarea.focus();
+      };
+
+      list.appendChild(li);
     });
+  }
+
+  async function togglePin(id) {
+    const n = state.notes.find(note => note.id === id);
+    if (!n) return;
+    n.pinned = !n.pinned;
+    n.updatedAt = Date.now();
+    await storageSet({ notes: state.notes });
+    renderHome();
+  }
+
+  async function deleteNoteFromHome(id) {
+    const n = state.notes.find(note => note.id === id);
+    if (!n) return;
+    if (!confirm(`Delete "${n.title || 'Untitled'}"?`)) return;
+    
+    state.notes = state.notes.filter(note => note.id !== id);
+    if (state.notes.length === 0) {
+      state.notes = [{ id: genId(), title: 'Untitled', content: '', updatedAt: Date.now(), pinned: false }];
+    }
+    if (state.activeId === id) state.activeId = state.notes[0].id;
+    
+    await storageSet({ notes: state.notes, activeId: state.activeId });
+    renderHome();
+  }
+
+  function startRenameFromHome(id, titleEl) {
+    const n = state.notes.find(note => note.id === id);
+    if (!n) return;
+    const current = n.title || '';
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'qn-input';
+    input.style.padding = '2px 4px';
+    input.style.height = 'auto';
+    input.value = current;
+    input.onclick = (e) => e.stopPropagation();
+    
+    const originalDisplay = titleEl.style.display;
+    titleEl.style.display = 'none';
+    titleEl.parentNode.insertBefore(input, titleEl);
+    
+    let committed = false;
+    async function commit(save) {
+      if (committed) return;
+      committed = true;
+      input.remove();
+      titleEl.style.display = originalDisplay;
+      if (!save) return;
+      const t = input.value.trim().slice(0, 80);
+      if (t === current) return;
+      if (t) {
+        n.title = t;
+        n.titleLocked = true;
+      } else {
+        n.titleLocked = false;
+        n.title = deriveTitle(n.content);
+      }
+      n.updatedAt = Date.now();
+      await storageSet({ notes: state.notes });
+      renderHome();
+    }
+    
+    input.onkeydown = (e) => {
+      if (e.key === 'Enter') commit(true);
+      if (e.key === 'Escape') commit(false);
+    };
+    input.onblur = () => commit(true);
+    input.focus();
+    input.select();
+  }
+
+  function renderSelector() {
+    if (currentView === 'home') renderHome();
+    renderPane1Selector();
+    renderPane2Selector();
   }
   function loadActiveIntoEditor() {
     const n = activeNote();
     if (!n) return;
     if (document.activeElement !== textarea) textarea.value = n.content;
+    if (shadow) {
+      const lbl = shadow.getElementById('activeNoteLabel');
+      if (lbl) lbl.textContent = n.title || 'Untitled';
+    }
     updateCounter();
     if (previewOn) renderPreview();
   }
@@ -1712,8 +1930,11 @@
     if (!n.titleLocked) {
       n.title = deriveTitle(textarea.value);
     }
+    if (shadow) {
+      const lbl = shadow.getElementById('activeNoteLabel');
+      if (lbl) lbl.textContent = n.title || 'Untitled';
+    }
     await storageSet({ notes: state.notes, activeId: state.activeId });
-    renderSelector();
     updatePaneLabel();
     statusEl.textContent = 'saved ✓';
     statusEl.classList.add('qn-ok');
@@ -1828,15 +2049,7 @@
   }
 
   // ---------- Views ----------
-  function switchView(name) {
-    currentView = name;
-    shadow.getElementById('editorView').hidden = (name !== 'editor');
-    shadow.getElementById('searchView').hidden = (name !== 'search');
-    shadow.getElementById('historyView').hidden = (name !== 'history');
-    if (name === 'editor') textarea.focus();
-    if (name === 'search') { setTimeout(() => searchInput.focus(), 30); runSearch(); }
-    if (name === 'history') renderHistory();
-  }
+  // switchView replaced by showView
 
   // ---------- Search ----------
   function runSearch() {
@@ -1891,14 +2104,13 @@
       li.appendChild(ico); li.appendChild(body);
       li.addEventListener('click', async () => {
         if (r.type === 'note') {
-          await save();
+          showView('editorView');
           state.activeId = r.id;
           await storageSet({ activeId: state.activeId });
           renderSelector(); loadActiveIntoEditor();
           updatePinButton(); updateDefaultButton(); updateTagUI();
-          switchView('editor');
         } else {
-          switchView('editor');
+          showView('editorView');
           insertAtCursor(r.full);
           flash('inserted from history');
         }
@@ -1956,7 +2168,7 @@
       });
       li.appendChild(ico); li.appendChild(body); li.appendChild(del);
       li.addEventListener('click', () => {
-        switchView('editor');
+        showView('editorView');
         insertAtCursor(entry.full);
         flash('inserted from history');
       });
@@ -2383,65 +2595,61 @@
     // Close / hide
     shadow.getElementById('closeBtn').addEventListener('click', hide);
 
-    // Note select / new / delete / pin
-    noteSelect.addEventListener('change', async () => {
-      // Capture the user's target BEFORE save() runs. save() calls
-      // renderSelector() which resets opt.selected based on state.activeId
-      // (still the old note), which silently reverts the user's pick.
-      const targetId = noteSelect.value;
+    // Navigation listeners
+    shadow.getElementById('goHome').addEventListener('click', async () => {
       await save();
-      state.activeId = targetId;
-      await storageSet({ activeId: state.activeId });
-      renderSelector();
-      loadActiveIntoEditor();
-      updatePinButton(); updateDefaultButton(); updateTagUI();
+      showView('homeView');
     });
+
+    shadow.getElementById('homeNewNote').addEventListener('click', async () => {
+      const note = { id: genId(), title: 'Untitled', content: '', updatedAt: Date.now(), pinned: false };
+      state.notes.push(note);
+      state.activeId = note.id;
+      await storageSet({ notes: state.notes, activeId: state.activeId });
+      loadActiveIntoEditor();
+      showView('editorView');
+      textarea.focus();
+    });
+
+    shadow.getElementById('homeSearchBtn').addEventListener('click', () => showView('searchView'));
+    shadow.getElementById('homeHistoryBtn').addEventListener('click', () => showView('historyView'));
+    shadow.getElementById('homeThemeBtn').addEventListener('click', () => {
+      state.theme = (state.theme === 'dark' ? 'light' : 'dark');
+      wrap.dataset.theme = state.theme;
+      storageSet({ theme: state.theme });
+      // Update icon in editor too
+      const themeBtn = shadow.getElementById('themeBtn');
+      if (themeBtn) themeBtn.innerHTML = svgIcon(state.theme === 'dark' ? 'sun' : 'bat');
+      // Update home theme button icon
+      const homeThemeBtn = shadow.getElementById('homeThemeBtn');
+      if (homeThemeBtn) homeThemeBtn.innerHTML = svgIcon(state.theme === 'dark' ? 'sun' : 'bat');
+    });
+    shadow.getElementById('homeOptionsBtn').addEventListener('click', () => {
+      chrome.runtime.sendMessage({ action: 'openOptions' });
+    });
+
     shadow.getElementById('newNote').addEventListener('click', async () => {
       await save();
       const note = { id: genId(), title: 'Untitled', content: '', updatedAt: Date.now(), pinned: false };
       state.notes.push(note);
       state.activeId = note.id;
       await storageSet({ notes: state.notes, activeId: state.activeId });
-      renderSelector(); loadActiveIntoEditor();
-      updatePinButton(); updateDefaultButton(); updateTagUI();
+      loadActiveIntoEditor();
+      updateDefaultButton(); updateTagUI();
       textarea.focus();
     });
-    shadow.getElementById('delNote').addEventListener('click', async () => {
-      if (state.notes.length === 1) {
-        if (!confirm('Clear this note?')) return;
-        const n = activeNote();
-        n.content = ''; n.title = 'Untitled'; n.updatedAt = Date.now();
-        await storageSet({ notes: state.notes });
-        loadActiveIntoEditor(); renderSelector(); flash('cleared');
-        return;
-      }
-      if (!confirm(`Delete "${activeNote().title}"?`)) return;
-      const delId = state.activeId;
-      const newDefaults = {};
-      for (const [pat, id] of Object.entries(state.settings.siteDefaults || {})) {
-        if (id !== delId) newDefaults[pat] = id;
-      }
-      state.settings.siteDefaults = newDefaults;
-      state.notes = state.notes.filter(n => n.id !== delId);
-      state.activeId = state.notes[0].id;
-      await storageSet({ notes: state.notes, activeId: state.activeId, settings: state.settings });
-      renderSelector(); loadActiveIntoEditor();
-      updatePinButton(); updateDefaultButton(); updateTagUI();
-      flash('deleted');
+    shadow.getElementById('backFromSearch').addEventListener('click', () => {
+      showView((lastView || 'home') + 'View');
     });
-    shadow.getElementById('pinNote').addEventListener('click', async () => {
-      const n = activeNote(); if (!n) return;
-      n.pinned = !n.pinned; n.updatedAt = Date.now();
-      await storageSet({ notes: state.notes });
-      renderSelector(); updatePinButton();
-      flash(n.pinned ? 'pinned' : 'unpinned');
+    shadow.getElementById('backFromHistory').addEventListener('click', () => {
+      showView((lastView || 'home') + 'View');
     });
 
     // Textarea
     textarea.addEventListener('input', () => { updateCounter(); scheduleSave(); });
     textarea.addEventListener('keydown', (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); save(); flash('saved ✓'); }
-      if ((e.ctrlKey || e.metaKey) && e.key === 'f') { e.preventDefault(); switchView('search'); }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'f') { e.preventDefault(); showView('searchView'); }
     });
 
     // Image paste: if the clipboard has an image, store it in state.images
@@ -3096,10 +3304,10 @@
     });
 
     // Search / history / options
-    shadow.getElementById('searchBtn').addEventListener('click', () => switchView('search'));
-    shadow.getElementById('historyBtn').addEventListener('click', () => switchView('history'));
-    shadow.getElementById('backFromSearch').addEventListener('click', () => switchView('editor'));
-    shadow.getElementById('backFromHistory').addEventListener('click', () => switchView('editor'));
+    shadow.getElementById('searchBtn').addEventListener('click', () => showView('searchView'));
+    shadow.getElementById('historyBtn').addEventListener('click', () => showView('historyView'));
+    shadow.getElementById('backFromSearch').addEventListener('click', () => showView(lastView + 'View'));
+    shadow.getElementById('backFromHistory').addEventListener('click', () => showView(lastView + 'View'));
     shadow.getElementById('clearHistoryBtn').addEventListener('click', async () => {
       if (!confirm('Clear all history?')) return;
       state.history = [];
@@ -3114,7 +3322,7 @@
       runSearch._t = setTimeout(runSearch, 80);
     });
     searchInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') switchView('editor');
+      if (e.key === 'Escape') showView('editorView');
     });
     shadow.getElementById('searchScope').addEventListener('change', runSearch);
   }
@@ -3211,13 +3419,21 @@
     if (!host) return;
     host.style.display = '';
     visible = true;
-    // Re-clamp geometry on show — the viewport may have changed while
-    // hidden, pushing the saved position off-screen.
+
+    // Always boot to home unless site-specific default exists
+    const perSite = pickDefaultNoteId(location.href);
+    if (perSite) {
+      state.activeId = perSite;
+      showView('editorView');
+    } else {
+      showView('homeView');
+    }
+
     if (shadow) {
       const wrap = shadow.getElementById('wrap');
       if (wrap) applyGeometry(wrap);
     }
-    if (textarea) textarea.focus();
+    loadActiveIntoEditor();
     maybeAutoPaste();
   }
   function hide() {

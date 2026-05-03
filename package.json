@@ -1,0 +1,16 @@
+{
+  "name": "simple-quick-notes",
+  "version": "1.0.0",
+  "description": "<p align=\"center\">   <img src=\"icons/icon128.png\" alt=\"Quick Notes logo\" width=\"96\" height=\"96\" /> </p>",
+  "main": "background.js",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "happy-dom": "^20.9.0",
+    "vitest": "^4.1.5"
+  }
+}

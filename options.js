@@ -57,10 +57,7 @@ function renderDefaults() {
   });
 }
 
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, c =>
-    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
-}
+function escapeHtml(s) { return Utils.escapeHtml(s); }
 
 function renderList(ul, arr, kind) {
   ul.innerHTML = '';
@@ -190,7 +187,7 @@ importFile.addEventListener('change', async () => {
       // Merge: keep all existing, append imported notes with new IDs, dedupe history
       const cur = await chrome.storage.local.get(null);
       const newNotes = [...(cur.notes || [])];
-      const genId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      const genId = () => Utils.genId();
       (json.data.notes || []).forEach(n => {
         newNotes.push({ ...n, id: genId() });
       });
@@ -246,7 +243,7 @@ $('clearAllBtn').addEventListener('click', async () => {
 const VALID_SHAPES = ['rectangle', 'rounded', 'hexagon', 'circle'];
 async function renderShape() {
   const d = await chrome.storage.local.get('shape');
-  const current = VALID_SHAPES.includes(d.shape) ? d.shape : 'rounded';
+  const current = Utils.normalizeShape(d.shape);
   document.querySelectorAll('.shapeChip').forEach(b => {
     b.classList.toggle('active', b.dataset.shape === current);
   });
@@ -461,8 +458,7 @@ function sendDrive(op, extras = {}) {
 
 function fmtTime(iso) {
   if (!iso) return 'never';
-  const d = new Date(iso);
-  return d.toLocaleString();
+  return Utils.fmtTime(new Date(iso).getTime());
 }
 
 async function refreshDriveUI() {
