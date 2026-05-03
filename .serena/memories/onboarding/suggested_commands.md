@@ -5,4 +5,5 @@ Since this project has no build step or `package.json`, development is done by:
 3. Clicking the **Reload** icon on the "Quick Notes" extension card.
 4. Testing the changes in the browser (popup or floating panel).
 
-No linting or testing commands are currently configured in the repository.
+- **Running Tests**: Run `npm test` to execute the Vitest suite.
+- **Continuous Testing**: Run `npx vitest` for watch mode during development.

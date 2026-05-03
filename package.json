@@ -4,7 +4,8 @@
   "description": "<p align=\"center\">   <img src=\"icons/icon128.png\" alt=\"Quick Notes logo\" width=\"96\" height=\"96\" /> </p>",
   "main": "background.js",
   "scripts": {
-    "test": "vitest run"
+    "test": "vitest run",
+    "build": "rm -f dist.zip && zip -r dist.zip . -x 'node_modules/*' 'tests/*' '.git/*' '.gitignore' 'package.json' 'package-lock.json' 'vitest.config.js' '.serena/*' '.agents/*' '.dev/*' 'README.md' 'LICENSE' 'PRIVACY.md' 'coverage/*'"
   },
   "keywords": [],
   "author": "",

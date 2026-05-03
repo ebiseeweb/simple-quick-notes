@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+
+# Testing
+coverage/
+
+# OS Files
+.DS_Store
+Thumbs.db
+*.log
+
+# IDEs
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# Extension specific
+*.zip
+*.crx
+
+# Agent / Tooling state
+.agents/
+.serena/
+
+# Environment
+.env
+.env.local
+
+# Developer
+.dev

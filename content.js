@@ -1219,14 +1219,13 @@
 
     <!-- Home (Note List) view -->
     <div class="qn-view" id="homeView" hidden>
-      <div class="qn-head">
+      <div class="qn-head" id="homeHead">
         <span class="qn-brand"><span class="qn-brand-dot"></span>QUICK NOTES</span>
         <div style="flex:1"></div>
         <button class="qn-btn" id="homeNewNote" title="New note">${svgIcon('plus')}</button>
         <button class="qn-btn" id="homeSearchBtn" title="Search">${svgIcon('search')}</button>
         <button class="qn-btn" id="homeHistoryBtn" title="History">${svgIcon('clock')}</button>
         <button class="qn-btn" id="homeThemeBtn" title="Toggle theme">${svgIcon('sun')}</button>
-        <button class="qn-btn" id="homeOptionsBtn" title="Options">${svgIcon('gear')}</button>
       </div>
       <div class="qn-home-content">
         <ul id="noteList" class="qn-list"></ul>
@@ -1241,7 +1240,7 @@
     <div class="qn-view" id="editorView">
       <div class="qn-head" id="head">
         <button class="qn-btn" id="goHome" title="Back to note list">${svgIcon('arrowLeft')}</button>
-        <span id="activeNoteLabel" class="qn-active-label">Open Note</span>
+        <span id="renameBtn" class="qn-active-label">Open Note</span>
         <div style="flex:1"></div>
         <button class="qn-btn" id="newNote" title="New note">${svgIcon('plus')}</button>
         <button class="qn-btn" id="tagBtn" title="Color tag this note">${svgIcon('tag')}</button>
@@ -1398,7 +1397,6 @@
     const homeNewNote = shadow.getElementById('homeNewNote');
     const noteList = shadow.getElementById('noteList');
     const noteCount = shadow.getElementById('noteCount');
-    const activeNoteLabel = shadow.getElementById('activeNoteLabel');
     const goHome = shadow.getElementById('goHome');
 
     applyGeometry(wrap);
@@ -1898,7 +1896,7 @@
     if (!n) return;
     if (document.activeElement !== textarea) textarea.value = n.content;
     if (shadow) {
-      const lbl = shadow.getElementById('activeNoteLabel');
+      const lbl = shadow.getElementById('renameBtn');
       if (lbl) lbl.textContent = n.title || 'Untitled';
     }
     updateCounter();
@@ -1931,7 +1929,7 @@
       n.title = deriveTitle(textarea.value);
     }
     if (shadow) {
-      const lbl = shadow.getElementById('activeNoteLabel');
+      const lbl = shadow.getElementById('renameBtn');
       if (lbl) lbl.textContent = n.title || 'Untitled';
     }
     await storageSet({ notes: state.notes, activeId: state.activeId });
@@ -2119,7 +2117,7 @@
     });
   }
   function highlightMatch(text, q) {
-    const safe = escapeHtml(text);
+    const safe = escapeHtml(text || '');
     if (!q) return safe;
     const esc = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     return safe.replace(new RegExp(esc, 'gi'), m => `<span class="qn-hl">${m}</span>`);
@@ -2431,8 +2429,9 @@
 
   // ---------- Events ----------
   function wireEvents(wrap) {
-    // Drag header with full on-screen clamping
     const head = shadow.getElementById('head');
+    const homeHead = shadow.getElementById('homeHead');
+    const heads = [head, homeHead].filter(Boolean);
 
     // Double-click anywhere on the header (except buttons/select) recenters.
     head.addEventListener('dblclick', (e) => {
@@ -2501,9 +2500,11 @@
         e.preventDefault();
       }
 
-      head.addEventListener('mousedown', (e) => {
-        if (e.target.closest('button, select')) return;
-        beginDrag(e);
+      heads.forEach(h => {
+        h.addEventListener('mousedown', (e) => {
+          if (e.target.closest('button, select')) return;
+          beginDrag(e);
+        });
       });
 
       // Alt + drag anywhere on the panel moves the window. This is the
@@ -2623,9 +2624,6 @@
       // Update home theme button icon
       const homeThemeBtn = shadow.getElementById('homeThemeBtn');
       if (homeThemeBtn) homeThemeBtn.innerHTML = svgIcon(state.theme === 'dark' ? 'sun' : 'bat');
-    });
-    shadow.getElementById('homeOptionsBtn').addEventListener('click', () => {
-      chrome.runtime.sendMessage({ action: 'openOptions' });
     });
 
     shadow.getElementById('newNote').addEventListener('click', async () => {

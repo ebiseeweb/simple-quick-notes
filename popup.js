@@ -512,7 +512,6 @@ $('homeNewNote').addEventListener('click', () => {
 $('homeSearchBtn').addEventListener('click', () => showView('searchView'));
 $('homeHistoryBtn').addEventListener('click', () => showView('historyView'));
 $('homeThemeBtn').addEventListener('click', toggleTheme);
-$('homeOptionsBtn').addEventListener('click', () => chrome.runtime.openOptionsPage());
 
 function startInlineRename() {
   // Logic merged into startRenameFromHome
@@ -803,12 +802,14 @@ function applyThemeIcon() {
     : 'Switch to dark theme';
 }
 
-$('themeBtn').addEventListener('click', async () => {
+async function toggleTheme() {
   state.theme = state.theme === 'light' ? 'dark' : 'light';
   document.documentElement.dataset.theme = state.theme;
   applyThemeIcon();
   await storageSet({ theme: state.theme });
-});
+}
+
+$('themeBtn').addEventListener('click', toggleTheme);
 
 $('optionsBtn').addEventListener('click', () => chrome.runtime.openOptionsPage());
 
@@ -1202,7 +1203,7 @@ function buildEntryRow(entry, highlight) {
 }
 
 function highlightMatch(text, q) {
-  const safe = escapeHtml(text);
+  const safe = escapeHtml(text || '');
   if (!q) return safe;
   const esc = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   return safe.replace(new RegExp(esc, 'gi'), m => `<span class="hl">${m}</span>`);
@@ -1344,9 +1345,10 @@ function runSearch() {
 }
 
 function highlightMatchText(text, q) {
-  if (!q) return text;
+  if (!q) return text || '';
+  const str = text || '';
   const esc = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  return text.replace(new RegExp(esc, 'gi'), m => `<mark>${m}</mark>`);
+  return str.replace(new RegExp(esc, 'gi'), m => `<mark>${m}</mark>`);
 }
 
 // ============ Storage sync ============

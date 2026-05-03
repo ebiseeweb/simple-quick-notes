@@ -6,4 +6,6 @@
   - `content.js`: Floating panel injected into pages using Shadow DOM for CSS isolation.
   - `popup.js`: Main editor logic for both the toolbar popup and standalone view.
   - `options.js`: Settings and configuration.
-- **Build System**: None. Files are loaded directly by the browser.
+- **Testing**: Vitest with `happy-dom` for unit testing and logic validation.
+- **Build System**: None (Direct execution). NPM is used only for development dependencies (testing).
+- **Shared Utilities**: `utils.js` houses testable pure logic shared across popup and options views.
