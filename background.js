@@ -7,6 +7,7 @@
 //  - Google Drive sync (delegated to drive-sync.js)
 
 importScripts('drive-sync.js');
+refreshActionState();
 
 const MAX_HISTORY = 200;
 
@@ -26,7 +27,8 @@ function matchPattern(url, pattern) {
 const matchesAny = (url, pats) => !!pats && pats.some(p => matchPattern(url, p));
 
 // === Install: create context menus ===
-chrome.runtime.onInstalled.addListener(() => {
+chrome.runtime.onInstalled.addListener(async () => {
+  await refreshActionState();
   chrome.contextMenus.create({
     id: 'add-selection-to-notes',
     title: 'Add selection to Quick Notes',
@@ -115,14 +117,85 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 // === Tab watcher: auto-show floating panel on configured URL patterns ===
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   if (changeInfo.status !== 'complete' || !tab.url) return;
-  if (!/^https?:/.test(tab.url)) return;
+  
   const { settings } = await chrome.storage.local.get('settings');
+  // Refresh state for all tabs to ensure Popup Mode is applied correctly
+  refreshActionState(tabId, tab.url);
+
+  if (!/^https?:/.test(tab.url)) return;
   if (!settings?.floatingPanelSites?.length) return;
-  if (!matchesAny(tab.url, settings.floatingPanelSites)) return;
+  if (matchesAny(tab.url, settings.floatingPanelSites)) {
+    try {
+      await injectFloating(tabId);
+      await chrome.tabs.sendMessage(tabId, { type: 'show' });
+    } catch {/* ignored */}
+  }
+});
+
+// === Action State Controller ===
+async function refreshActionState(tabId, tabUrl) {
+  if (!tabId) {
+    // Global update
+    const { settings } = await chrome.storage.local.get('settings');
+    const view = settings?.defaultView || 'float';
+    if (view === 'popup') {
+      await chrome.action.setPopup({ popup: 'popup.html?mode=popup' });
+    } else {
+      await chrome.action.setPopup({ popup: '' });
+    }
+    return;
+  }
+  const { settings } = await chrome.storage.local.get('settings');
+  const view = settings?.defaultView || 'float';
+
+  if (view === 'popup') {
+    await chrome.action.setPopup({ popup: 'popup.html?mode=popup' }); // Global
+    return;
+  } else {
+    // Reset global popup if not in popup mode
+    await chrome.action.setPopup({ popup: '' });
+  }
+
+  // Check if injectable (source of truth from openOnTab)
+  const isRestricted = tabUrl && (
+    /^(chrome|chrome-extension|edge|brave):/.test(tabUrl) ||
+    /^https:\/\/chrome\.google\.com\/webstore/.test(tabUrl) ||
+    /^https:\/\/chromewebstore\.google\.com/.test(tabUrl) ||
+    tabUrl.startsWith('about:')
+  );
+  const isInjectable = tabUrl && !isRestricted && (tabUrl.startsWith('http') || tabUrl.startsWith('file') || tabUrl.startsWith('about:blank'));
+
+  if (isInjectable) {
+    await chrome.action.setPopup({ tabId, popup: '' }); // Trigger onClicked for this tab
+  } else {
+    await chrome.action.setPopup({ tabId, popup: 'popup.html?mode=popup' }); // Fallback for this tab
+  }
+}
+
+chrome.tabs.onActivated.addListener(async (activeInfo) => {
   try {
-    await injectFloating(tabId);
-    await chrome.tabs.sendMessage(tabId, { type: 'show' });
-  } catch {/* some pages reject injection */}
+    const tab = await chrome.tabs.get(activeInfo.tabId);
+    if (tab) refreshActionState(tab.id, tab.url);
+  } catch {}
+});
+
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.status === 'complete' || changeInfo.url) {
+    refreshActionState(tabId, tab.url);
+  }
+});
+
+chrome.tabs.onCreated.addListener((tab) => {
+  refreshActionState(tab.id, tab.url);
+});
+
+chrome.storage.onChanged.addListener(async (changes, area) => {
+  if (area === 'local' && (changes.settings || changes.activeId)) {
+    const tabs = await chrome.tabs.query({});
+    for (const tab of tabs) {
+      refreshActionState(tab.id, tab.url);
+    }
+  }
 });
 
 // === Commands: Alt+Shift+N toggles floating panel ===
@@ -158,19 +231,34 @@ async function openOnTab(tab) {
   if (!tab || !tab.id) return;
   // Strictly restricted pages where injection is guaranteed to fail.
   if (tab.url && (
-      /^(chrome|chrome-extension|edge|brave):/.test(tab.url) ||
+      /^(chrome|chrome-extension|edge|brave|about):/.test(tab.url) ||
       /^https:\/\/chrome\.google\.com\/webstore/.test(tab.url) ||
       /^https:\/\/chromewebstore\.google\.com/.test(tab.url)
   )) {
-    chrome.tabs.create({ url: chrome.runtime.getURL('popup.html?standalone=1') });
+    // Already handled by setPopup fallback in most cases, 
+    // but if we are here via keyboard shortcut, we need a fallback.
+    // Use windows.create popup to feel more like a popup.
+    chrome.windows.create({
+      url: chrome.runtime.getURL('popup.html?mode=popup'),
+      type: 'popup',
+      width: 450,
+      height: 600
+    });
     return;
   }
+  const { settings } = await chrome.storage.local.get('settings');
+  const focus = settings?.defaultView === 'float-focus';
   try {
     await injectFloating(tab.id);
-    await chrome.tabs.sendMessage(tab.id, { type: 'toggle' });
+    await chrome.tabs.sendMessage(tab.id, { type: 'toggle', focus });
   } catch (e) {
-    // Fallback to standalone if injection somehow failed
-    chrome.tabs.create({ url: chrome.runtime.getURL('popup.html?standalone=1') });
+    // Fallback if injection failed
+    chrome.windows.create({
+      url: chrome.runtime.getURL('popup.html?mode=popup'),
+      type: 'popup',
+      width: 450,
+      height: 600
+    });
   }
 }
 
@@ -184,12 +272,19 @@ async function injectFloating(tabId) {
 
 async function toggleFloating(tabId) {
   try {
+    const { settings } = await chrome.storage.local.get('settings');
+    const focus = settings?.defaultView === 'float-focus';
     await injectFloating(tabId);
-    await chrome.tabs.sendMessage(tabId, { type: 'toggle' });
+    await chrome.tabs.sendMessage(tabId, { type: 'toggle', focus });
   } catch (e) {
     // likely a restricted page (chrome://, web store, etc.)
     console.warn('[QuickNotes] Cannot toggle on this page:', e);
-    chrome.tabs.create({ url: chrome.runtime.getURL('popup.html?standalone=1') });
+    chrome.windows.create({
+      url: chrome.runtime.getURL('popup.html?mode=popup'),
+      type: 'popup',
+      width: 450,
+      height: 600
+    });
   }
 }
 

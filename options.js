@@ -15,7 +15,7 @@ let notesCache = [];
 async function loadAll() {
   const d = await chrome.storage.local.get(['settings', 'notes', 'history']);
   settings = Object.assign(
-    { autoPasteSites: [], floatingPanelSites: [], siteDefaults: {} },
+    { autoPasteSites: [], floatingPanelSites: [], siteDefaults: {}, defaultView: 'float' },
     d.settings || {}
   );
   notesCache = d.notes || [];
@@ -23,6 +23,7 @@ async function loadAll() {
   renderList(floatList, settings.floatingPanelSites, 'floating');
   renderDefaults();
   renderStats(d);
+  if ($('defaultView')) $('defaultView').value = settings.defaultView || 'float';
 }
 
 function renderDefaults() {
@@ -122,6 +123,13 @@ $('floatAdd').addEventListener('click', () =>
 floatInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') addPattern(floatInput, settings.floatingPanelSites, 'floating');
 });
+
+if ($('defaultView')) {
+  $('defaultView').addEventListener('change', async () => {
+    settings.defaultView = $('defaultView').value;
+    await chrome.storage.local.set({ settings });
+  });
+}
 
 // === Stats ===
 function renderStats(d) {

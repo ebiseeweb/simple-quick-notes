@@ -36,6 +36,9 @@
       <symbol id="i-bold" viewBox="0 0 24 24"><path d="M7 4h7a4 4 0 0 1 0 8H7z"/><path d="M7 12h8a4 4 0 0 1 0 8H7z"/></symbol>
       <symbol id="i-code" viewBox="0 0 24 24"><path d="M9 8l-5 4 5 4M15 8l5 4-5 4"/></symbol>
       <symbol id="i-colorText" viewBox="0 0 24 24"><path d="M6 20l6-14 6 14M8.5 16h7"/><rect x="4" y="20" width="16" height="2" fill="currentColor" stroke="none"/></symbol>
+      <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></symbol>
+      <symbol id="i-redo" viewBox="0 0 24 24"><path d="M15 14l5-5-5-5"/><path d="M4 20v-7a4 4 0 0 1 4-4h12"/></symbol>
+      <symbol id="i-selection" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="3 3"/><path d="M9 9h6v6H9z" fill="currentColor" fill-opacity="0.3"/></symbol>
     </defs>
   </svg>
 
@@ -50,6 +53,7 @@
         <button id="homeSearchBtn" class="icon-btn" title="Search"><svg class="ico"><use href="#i-search"/></svg></button>
         <button id="homeHistoryBtn" class="icon-btn" title="History"><svg class="ico"><use href="#i-clock"/></svg></button>
         <button id="homeThemeBtn" class="icon-btn" title="Toggle theme"><svg class="ico"><use href="#i-sun"/></svg></button>
+        <button id="homeOptionsBtn" class="icon-btn" title="Options"><svg class="ico"><use href="#i-gear"/></svg></button>
       </div>
       <div class="home-content">
         <ul id="noteList" class="note-list"></ul>
@@ -86,19 +90,26 @@
 
       <div class="toolbar">
         <div class="tool-group">
+          <button id="undoBtn" class="text-btn" title="Undo"><svg class="ico"><use href="#i-undo"/></svg></button>
+          <button id="redoBtn" class="text-btn" title="Redo"><svg class="ico"><use href="#i-redo"/></svg></button>
+        </div>
+        <div class="tool-sep"></div>
+        <div class="tool-group">
           <button id="pasteBtn" class="text-btn" title="Paste clipboard at cursor"><svg class="ico"><use href="#i-clipboard"/></svg></button>
+          <button id="cutBtn" class="text-btn" title="Cut selection"><svg class="ico"><use href="#i-scissors"/></svg></button>
           <button id="copyBtn" class="text-btn" title="Copy whole note"><svg class="ico"><use href="#i-copy"/></svg></button>
         </div>
         <div class="tool-sep"></div>
         <div class="tool-group">
           <button id="urlBtn" class="text-btn" title="Insert current page URL"><svg class="ico"><use href="#i-link"/></svg></button>
-          <button id="selectionBtn" class="text-btn" title="Insert page selection"><svg class="ico"><use href="#i-scissors"/></svg></button>
+          <button id="selectionBtn" class="text-btn" title="Insert page selection"><svg class="ico"><use href="#i-selection"/></svg></button>
           <button id="timeBtn" class="text-btn" title="Insert timestamp with timezone"><svg class="ico"><use href="#i-clock"/></svg></button>
         </div>
         <div class="tool-sep"></div>
         <div class="tool-group">
           <button id="divBtn" class="text-btn" title="Insert divider">━</button>
           <button id="checkBtn" class="text-btn" title="Insert checklist item"><svg class="ico"><use href="#i-check"/></svg></button>
+          <button id="tableBtn" class="text-btn" title="Insert markdown table"><svg class="ico"><use href="#i-table"/></svg></button>
         </div>
         <div class="tool-sep"></div>
         <div class="tool-group">

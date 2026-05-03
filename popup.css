@@ -142,6 +142,9 @@ body[data-shape="circle"] .preview {
   flex: 1;
   min-height: 0;
 }
+/* Support for standard [hidden] attribute */
+[hidden] { display: none !important; }
+
 .view[hidden] { display: none !important; }
 
 /* ===== Header ===== */
@@ -804,4 +807,28 @@ input[type="range"].opacity-slider::-moz-range-thumb {
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 180px;
+}
+
+/* ===== Popup Mode Overrides ===== */
+body.is-popup {
+  width: 450px !important;
+  height: 560px !important;
+}
+body.is-popup #shapeFrame {
+  border-radius: 0 !important;
+  border: none !important;
+  clip-path: none !important;
+}
+body.is-popup .rz {
+  display: none !important;
+}
+body.is-popup #editorView .toolbar {
+  justify-content: flex-start;
+  padding: 6px 8px;
+}
+body.is-popup #editorView .tool-sep {
+  display: none;
+}
+body.is-popup #editorView .tool-group {
+  gap: 4px;
 }

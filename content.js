@@ -1246,6 +1246,7 @@
         <button class="qn-btn" id="homeSearchBtn" title="Search">${svgIcon('search')}</button>
         <button class="qn-btn" id="homeHistoryBtn" title="History">${svgIcon('clock')}</button>
         <button class="qn-btn" id="homeThemeBtn" title="Toggle theme">${svgIcon('sun')}</button>
+        <button class="qn-btn" id="homeOptionsBtn" title="Options">${svgIcon('gear')}</button>
       </div>
       <div class="qn-home-content">
         <ul id="noteList" class="qn-list"></ul>
@@ -1277,13 +1278,19 @@
 
       <div class="qn-bar" id="toolbar">
         <div class="qn-bar-group">
+          <button class="qn-btn" id="undoBtn" title="Undo">${svgIcon('undo')}</button>
+          <button class="qn-btn" id="redoBtn" title="Redo">${svgIcon('redo')}</button>
+        </div>
+        <div class="qn-bar-sep"></div>
+        <div class="qn-bar-group">
           <button class="qn-btn" id="pasteBtn" title="Paste clipboard">${svgIcon('clipboard')}</button>
+          <button class="qn-btn" id="cutBtn" title="Cut selection">${svgIcon('scissors')}</button>
           <button class="qn-btn" id="copyBtn" title="Copy whole note">${svgIcon('copy')}</button>
         </div>
         <div class="qn-bar-sep"></div>
         <div class="qn-bar-group">
           <button class="qn-btn" id="urlBtn" title="Insert page URL">${svgIcon('link')}</button>
-          <button class="qn-btn" id="selBtn" title="Insert page selection">${svgIcon('scissors')}</button>
+          <button class="qn-btn" id="selBtn" title="Insert page selection">${svgIcon('selection')}</button>
           <button class="qn-btn" id="timeBtn" title="Insert timestamp">${svgIcon('clock')}</button>
         </div>
         <div class="qn-bar-sep"></div>
@@ -1407,6 +1414,7 @@
     previewEl = shadow.getElementById('preview');
     statusEl = shadow.getElementById('status');
     counterEl = shadow.getElementById('counter');
+    noteSelect = shadow.getElementById('renameBtn');
     searchInput = shadow.getElementById('searchInput');
     searchResults = shadow.getElementById('searchResults');
     searchCount = shadow.getElementById('searchCount');
@@ -1697,13 +1705,17 @@
       swap: '<path d="M8 3L4 7l4 4"/><path d="M4 7h16"/><path d="M16 21l4-4-4-4"/><path d="M20 17H4"/>',
       minimize: '<rect x="3" y="3" width="18" height="18" rx="2" opacity="0.4"/><path d="M6 18h12" stroke-width="2.5"/>',
       table: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M9 4v16M15 4v16"/>',
+      cut: '<circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4L8.1 15.9"/><path d="M14.5 14.5L20 20"/><path d="M8.1 8.1L12 12"/>',
       zoomIn: '<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/><path d="M11 8v6M8 11h6"/>',
       zoomOut: '<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/><path d="M8 11h6"/>',
       zen: '<circle cx="12" cy="6" r="2.5"/><path d="M12 10c-3 0-5 2-5 5v1h10v-1c0-3-2-5-5-5z"/><path d="M7 16c-1.5 0.5-3 1.5-3 3h16c0-1.5-1.5-2.5-3-3"/>',
       zenExit: '<path d="M3 3h6v6H3zM15 3h6v6h-6zM3 15h6v6H3zM15 15h6v6h-6z"/>',
       bold: '<path d="M7 4h7a4 4 0 0 1 0 8H7z"/><path d="M7 12h8a4 4 0 0 1 0 8H7z"/>',
       code: '<path d="M9 8l-5 4 5 4M15 8l5 4-5 4"/>',
-      colorText: '<path d="M6 20l6-14 6 14M8.5 16h7"/><rect x="4" y="20" width="16" height="2" fill="currentColor" stroke="none"/>'
+      colorText: '<path d="M6 20l6-14 6 14M8.5 16h7"/><rect x="4" y="20" width="16" height="2" fill="currentColor" stroke="none"/>',
+      undo: '<path d="M9 14L4 9l5-5"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/>',
+      redo: '<path d="M15 14l5-5-5-5"/><path d="M4 20v-7a4 4 0 0 1 4-4h12"/>',
+      selection: '<rect x="3" y="3" width="18" height="18" rx="2" stroke-dasharray="4 4"/><path d="M9 9h6v6H9z" fill="currentColor" fill-opacity="0.3"/>'
     };
     return `<svg viewBox="0 0 24 24">${paths[name] || ''}</svg>`;
   }
@@ -1969,12 +1981,17 @@
     renderPane1Selector();
   }
   function insertAtCursor(text) {
-    const s = textarea.selectionStart, e = textarea.selectionEnd;
-    textarea.value = textarea.value.slice(0, s) + text + textarea.value.slice(e);
-    textarea.selectionStart = textarea.selectionEnd = s + text.length;
     textarea.focus();
-    updateCounter();
-    scheduleSave();
+    try {
+      if (!document.execCommand('insertText', false, text)) {
+        throw new Error('execCommand failed');
+      }
+    } catch (err) {
+      const s = textarea.selectionStart, e = textarea.selectionEnd;
+      textarea.value = textarea.value.slice(0, s) + text + textarea.value.slice(e);
+      textarea.selectionStart = textarea.selectionEnd = s + text.length;
+    }
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
   }
 
   // ===== Markdown table insertion =====
@@ -2652,6 +2669,10 @@
       if (homeThemeBtn) homeThemeBtn.innerHTML = svgIcon(state.theme === 'dark' ? 'sun' : 'bat');
     });
 
+    shadow.getElementById('homeOptionsBtn').addEventListener('click', () => {
+      chrome.runtime.sendMessage({ type: 'open-options' });
+    });
+
     shadow.getElementById('newNote').addEventListener('click', async () => {
       await save();
       const note = { id: genId(), title: 'Untitled', content: '', updatedAt: Date.now(), pinned: false };
@@ -2780,6 +2801,14 @@
     });
 
     // Toolbar buttons
+    shadow.getElementById('undoBtn').addEventListener('click', () => {
+      textarea.focus();
+      document.execCommand('undo');
+    });
+    shadow.getElementById('redoBtn').addEventListener('click', () => {
+      textarea.focus();
+      document.execCommand('redo');
+    });
     shadow.getElementById('pasteBtn').addEventListener('click', async () => {
       try {
         const t = await navigator.clipboard.readText();
@@ -2800,6 +2829,19 @@
     shadow.getElementById('copyBtn').addEventListener('click', async () => {
       try { await navigator.clipboard.writeText(expandImageRefs(textarea.value)); flash('copied ✓'); }
       catch { flash('copy failed'); }
+    });
+    shadow.getElementById('cutBtn').addEventListener('click', async () => {
+      const s = textarea.selectionStart, e = textarea.selectionEnd;
+      const sel = textarea.value.slice(s, e);
+      if (sel) {
+        try {
+          await navigator.clipboard.writeText(sel);
+          textarea.value = textarea.value.slice(0, s) + textarea.value.slice(e);
+          updateCounter(); scheduleSave();
+          flash('cut ✓');
+          textarea.focus();
+        } catch { flash('cut failed'); }
+      } else flash('nothing selected');
     });
     shadow.getElementById('urlBtn').addEventListener('click', async () => {
       const text = `${document.title}\n${location.href}\n`;
@@ -3439,7 +3481,7 @@
   });
 
   // ---------- Show / hide ----------
-  function show() {
+  function show(focus = false) {
     if (!host) return;
     host.style.display = '';
     visible = true;
@@ -3459,6 +3501,14 @@
     }
     loadActiveIntoEditor();
     maybeAutoPaste();
+
+    if (focus) {
+      setTimeout(() => {
+        if (iframe && iframe.contentWindow) {
+          iframe.contentWindow.postMessage({ type: 'focus-editor' }, '*');
+        }
+      }, 150);
+    }
   }
   async function hide() {
     await flushSave();
@@ -3485,19 +3535,19 @@
   chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (!msg || !msg.type) return;
     if (msg.type === 'toggle') {
-      if (!host) bootstrap();
+      if (!host) bootstrap(msg.focus);
       else if (visible) hide();
-      else show();
+      else show(msg.focus);
     } else if (msg.type === 'show') {
-      if (!host) bootstrap();
-      else show();
+      if (!host) bootstrap(msg.focus);
+      else show(msg.focus);
     } else if (msg.type === 'hide') {
       hide();
     } else if (msg.type === 'recenter') {
       if (!host) {
-        bootstrap().then(() => recenterPanel());
+        bootstrap(msg.focus).then(() => recenterPanel());
       } else {
-        show();
+        show(msg.focus);
         recenterPanel();
       }
     }

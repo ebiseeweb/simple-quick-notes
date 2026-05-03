@@ -419,11 +419,18 @@ async function save() {
 }
 
 function insertAtCursor(text) {
-  const start = editor.selectionStart;
-  const end = editor.selectionEnd;
-  editor.value = editor.value.slice(0, start) + text + editor.value.slice(end);
-  editor.selectionStart = editor.selectionEnd = start + text.length;
   editor.focus();
+  // execCommand('insertText') preserves the undo/redo stack
+  try {
+    if (!document.execCommand('insertText', false, text)) {
+      throw new Error('execCommand failed');
+    }
+  } catch (e) {
+    const start = editor.selectionStart;
+    const end = editor.selectionEnd;
+    editor.value = editor.value.slice(0, start) + text + editor.value.slice(end);
+    editor.selectionStart = editor.selectionEnd = start + text.length;
+  }
   updateCounter();
   scheduleSave();
 }
@@ -601,6 +608,40 @@ $('timeBtn').addEventListener('click', () => {
   const stamp = `[${y}-${mo}-${d} ${h}:${mi}:${s} GMT${sign}${offH}:${offM} (${tz})] `;
   insertAtCursor(stamp);
   flash('time added');
+});
+
+$('cutBtn').addEventListener('click', () => {
+  const start = editor.selectionStart;
+  const end = editor.selectionEnd;
+  const sel = editor.value.slice(start, end);
+  if (sel) {
+    navigator.clipboard.writeText(sel).then(() => {
+      editor.setRangeText('', start, end, 'end');
+      save();
+      flash('cut ✓');
+    }).catch(() => flash('cut failed'));
+  } else {
+    flash('nothing selected');
+  }
+});
+
+$('tableBtn').addEventListener('click', () => {
+  const template = `| Column 1 | Column 2 |\n| --- | --- |\n| Cell 1 | Cell 2 |\n`;
+  insertAtCursor(template);
+  flash('table added ✓');
+});
+
+$('undoBtn').addEventListener('click', () => {
+  editor.focus();
+  document.execCommand('undo');
+});
+$('redoBtn').addEventListener('click', () => {
+  editor.focus();
+  document.execCommand('redo');
+});
+
+$('homeOptionsBtn').addEventListener('click', () => {
+  chrome.runtime.openOptionsPage();
 });
 
 $('divBtn').addEventListener('click', () => {
@@ -1415,6 +1456,19 @@ chrome.storage.onChanged.addListener((changes, area) => {
   }
 });
 
+// ============ In-page injection message handler ============
+window.addEventListener('message', (e) => {
+  if (e.data && e.data.type === 'focus-editor') {
+    if (!editorView.hidden) {
+      editor.focus();
+      // Move cursor to end
+      const val = editor.value;
+      editor.value = '';
+      editor.value = val;
+    }
+  }
+});
+
 // ============ Shape picker ============
 function applyShape() {
   document.body.dataset.shape = state.shape;
@@ -1580,3 +1634,68 @@ chrome.storage.onChanged.addListener((changes) => {
 });
 
 window.addEventListener('pagehide', flushSave);
+
+// ============ Simplified UI for Popup Mode ============
+function setUIMode() {
+  const params = new URLSearchParams(window.location.search);
+  const isPopup = params.get('mode') === 'popup' || params.get('standalone') === '1' || document.body.classList.contains('is-popup');
+  
+  if (isPopup) {
+    document.body.classList.add('is-popup');
+    
+    // Toolbar: only requested buttons
+    const allowedToolbar = ['copyBtn', 'cutBtn', 'pasteBtn', 'boldBtn', 'checkBtn', 'tableBtn'];
+    document.querySelectorAll('.toolbar .text-btn').forEach(btn => {
+      btn.hidden = !allowedToolbar.includes(btn.id);
+    });
+
+    // Editor Header: only goHome, themeBtn, optionsBtn
+    const allowedEditorHeader = ['goHome', 'themeBtn', 'optionsBtn'];
+    document.querySelectorAll('#editorView .header .icon-btn').forEach(btn => {
+      btn.hidden = !allowedEditorHeader.includes(btn.id);
+    });
+
+    // Home Header: theme, options, and newNote (essential for "homepage as it is")
+    const allowedHomeHeader = ['homeThemeBtn', 'homeOptionsBtn', 'homeNewNote'];
+    document.querySelectorAll('#homeView .header .icon-btn').forEach(btn => {
+      btn.hidden = !allowedHomeHeader.includes(btn.id);
+    });
+
+    // Hide extra elements
+    const hideSelectors = [
+      '.opacity-group', '.sep', '.tool-sep', '#activeNoteLabel', 
+      '#shapeBtn', '#shapeMenu', '.rz', '.footer .muted', '#shapeMenu'
+    ];
+    hideSelectors.forEach(sel => {
+      document.querySelectorAll(sel).forEach(el => {
+        el.hidden = true;
+        el.style.display = 'none'; // Double down
+      });
+    });
+
+    // Standard popup dimensions
+    document.documentElement.style.width = '450px';
+    document.body.style.width = '450px';
+    document.documentElement.style.height = '600px';
+    document.body.style.height = '600px';
+  }
+}
+
+// Intercept showView to re-apply mode
+const originalShowView = showView;
+showView = function(viewId) {
+  originalShowView(viewId);
+  setUIMode();
+};
+
+// Use message passing for options for consistency across all contexts
+$('optionsBtn').addEventListener('click', (e) => {
+  e.preventDefault();
+  chrome.runtime.sendMessage({ type: 'open-options' });
+});
+$('homeOptionsBtn').addEventListener('click', (e) => {
+  e.preventDefault();
+  chrome.runtime.sendMessage({ type: 'open-options' });
+});
+
+setUIMode();
